@@ -35,6 +35,7 @@ A Go backend service for monitoring iOS App Store reviews with concurrent pollin
 - **Review Display**: Card-based layout with star ratings and timestamps
 - **Responsive UI**: Clean interface for viewing recent reviews
 - **Error Handling**: User-friendly error and loading states
+- **API Service Tests**: Comprehensive test coverage for API client with Vitest
 
 ### Project Structure
 ```
@@ -71,10 +72,11 @@ frontend/
 │   │   ├── ReviewList.tsx     # Review listing with auto-refresh
 │   │   └── ReviewCard.tsx     # Individual review card component
 │   ├── services/
-│   │   └── api.ts             # API client for backend endpoints
+│   │   ├── api.ts             # API client for backend endpoints
+│   │   └── api.test.ts        # API client test suite (5 tests)
 │   └── types/
 │       └── review.ts          # TypeScript type definitions
-├── vite.config.ts             # Vite build configuration
+├── vite.config.ts             # Vite build & test configuration
 └── package.json               # Dependencies and scripts
 ```
 
@@ -180,6 +182,12 @@ go build -o mobile-reviews-poller main.go
 ```bash
 cd frontend
 
+# Run tests
+npm test
+
+# Run tests in watch mode
+npm test -- --watch
+
 # Run linter
 npm run lint
 
@@ -244,9 +252,15 @@ curl "http://localhost:8080/api/health"
 
 ## Test Coverage
 
+### Backend
 - **69 total tests** across all packages
 - **Poller**: 25 tests covering HTTP requests, parsing, and error handling
 - **Storage**: 18 tests covering file I/O, concurrency, and edge cases
 - **Handler**: 17 tests covering HTTP endpoints and API functionality
 - **Test Utils**: 9 tests validating mock implementations
 - **Coverage Areas**: Happy path, error conditions, edge cases, concurrency
+
+### Frontend
+- **5 tests** for API service
+- **API Client**: Tests for fetch operations, error handling, and parameter validation
+- **Coverage Areas**: Default/custom parameters, HTTP errors, network failures, empty responses
