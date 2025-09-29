@@ -1,7 +1,6 @@
 package poller
 
 import (
-	"backend/internal/models"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -9,9 +8,13 @@ import (
 	"strconv"
 	"sync"
 	"time"
+
+	"backend/internal/models"
+	"backend/internal/storage"
 )
 
 type Poller struct {
+	storage      storage.Storage
 	logger       *log.Logger
 	client       *http.Client
 	appIDs       []string
@@ -22,15 +25,16 @@ type Poller struct {
 	started      bool
 }
 
-func NewPoller(logger *log.Logger, appIDs []string, interval time.Duration) *Poller {
+func NewPoller(storage storage.Storage, logger *log.Logger, appIDs []string, interval time.Duration) *Poller {
 	if logger == nil {
 		logger = log.Default()
 	}
 	return &Poller{
-		logger:       logger,
+		storage: storage,
+		logger:  logger,
 		client: &http.Client{
-            Timeout: 30 * time.Second,
-        },
+			Timeout: 30 * time.Second,
+		},
 		appIDs:       appIDs,
 		pollInterval: interval,
 		stopChan:     make(chan struct{}),
@@ -116,8 +120,11 @@ func (p *Poller) fetchAndStore(appID string) error {
 		return nil
 	}
 
-	// TODO: store reviews
+	if err := p.storage.SaveReviews(reviews); err != nil {
+		return err
+	}
 
+	p.logger.Printf("Stored %d reviews for app %s", len(reviews), appID)
 	return nil
 }
 

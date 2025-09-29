@@ -1,13 +1,15 @@
 package main
 
 import (
-	"backend/internal/poller"
 	"encoding/json"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+	
+	"backend/internal/poller"
+	"backend/internal/storage"
 )
 
 func main() {
@@ -16,16 +18,31 @@ func main() {
 
 	logger.Println("Starting App Store Review Poller...")
 
+    // Initialize storage
+    storageFilePath := "data/reviews.json"
+    store, err := storage.NewFileStorage(storageFilePath)
+    if err != nil {
+        logger.Fatalf("Failed to create storage: %v", err)
+    }
+
+	// Load existing state from disk
+    if err := store.LoadState(); err != nil {
+        logger.Printf("Warning: Failed to load existing state: %v", err)
+        logger.Println("Starting with empty state...")
+    } else {
+        logger.Println("Successfully loaded existing review data")
+    }
+
     // Load config
     config, err := loadConfig("config/apps.json")
     if err != nil {
-        log.Fatalf("Failed to load config: %v", err)
+        logger.Fatalf("Failed to load config: %v", err)
     }
 
 	// Start reviewPoller
 	// TODO: change to minutes for production
 	pollInterval := 5 * time.Second
-	reviewPoller := poller.NewPoller(logger, config.Apps, pollInterval)
+	reviewPoller := poller.NewPoller(store, logger, config.Apps, pollInterval)
 	reviewPoller.Start()
 
 	// Setup graceful shutdown
@@ -34,12 +51,13 @@ func main() {
 
 	// Wait for interrupt signal
 	<-sigChan
-	log.Println("\nShutdown signal received, cleaning up...")
+	logger.Println("\nShutdown signal received, cleaning up...")
 
-	log.Println("Stopping poller...")
+	logger.Println("Stopping poller...")
 	reviewPoller.Stop()
+    store.SaveState()
 
-	log.Println("Shutdown complete")
+	logger.Println("Shutdown complete")
 }
 
 type Config struct {
