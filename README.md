@@ -5,8 +5,8 @@ A Go backend service for monitoring iOS App Store reviews with concurrent pollin
 ## Architecture
 ```
 ┌─────────────┐      ┌──────────────┐      ┌─────────────┐
-│   RSS Feed  │ ───> │  Go Backend  │ <──> │   HTTP API  │
-│ (App Store) │      │   (Poller)   │      │ (REST/JSON) │
+│   RSS Feed  │ ───> │  Go Backend  │ <──> │  React UI   │
+│ (App Store) │      │   (Poller)   │      │  (Viewer)   │
 └─────────────┘      └──────────────┘      └─────────────┘
                             │
                             ▼
@@ -97,7 +97,7 @@ type Review struct {
 
 ## Usage
 
-### Quick Start
+### Backend Quick Start
 ```bash
 cd backend
 go run main.go
