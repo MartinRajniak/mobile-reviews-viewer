@@ -11,6 +11,7 @@ import (
 )
 
 func main() {
+	// TODO: move to slog to have more control (e.g. log levels)
 	logger := log.New(os.Stdout, "[POLLER] ", log.LstdFlags)
 
 	logger.Println("Starting App Store Review Poller...")

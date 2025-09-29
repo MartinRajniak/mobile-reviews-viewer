@@ -24,9 +24,12 @@ backend/
 ├── config/
 │   ├── apps.json            # Application IDs to poll for
 ├── internal/
+│   ├── models/
+│   │   ├── review.go        # Internal review model
 │   ├── poller/
 │   │   ├── poller.go        # RSS polling logic
-│   │   └── poller_test.go
+│   │   ├── poller_test.go
+│   │   └── rss_types.go
 │   └── testutil/
 │       └── buffer.go        # Thread-safe buffer for log testing
 ```

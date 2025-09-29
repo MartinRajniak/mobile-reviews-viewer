@@ -2,8 +2,11 @@ package poller
 
 import (
 	"backend/internal/testutil"
+	"encoding/json"
 	"io"
 	"log"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -259,5 +262,336 @@ func TestPoller_ConcurrentAppPolling(t *testing.T) {
 	// This is a soft check - concurrent execution should be reasonably fast
 	if elapsed > 1*time.Second {
 		t.Logf("Warning: Polling took %v, may not be running concurrently", elapsed)
+	}
+}
+
+// HTTP Request Tests
+
+func TestPoller_fetchReviewsSuccess(t *testing.T) {
+	// Create mock RSS feed response
+	mockFeed := RSSFeed{
+		Feed: struct {
+			Entry []RSSEntry `json:"entry"`
+		}{
+			Entry: []RSSEntry{
+				{
+					Author: struct {
+						Name struct {
+							Label string `json:"label"`
+						} `json:"name"`
+					}{
+						Name: struct {
+							Label string `json:"label"`
+						}{Label: "John Doe"},
+					},
+					Content: struct {
+						Label string `json:"label"`
+					}{Label: "Great app!"},
+					Rating: struct {
+						Label string `json:"label"`
+					}{Label: "5"},
+					Updated: struct {
+						Label string `json:"label"`
+					}{Label: "2023-01-15T10:30:00Z"},
+					ID: struct {
+						Label string `json:"label"`
+					}{Label: "https://itunes.apple.com/us/review?id=123&type=Purple+Software"},
+				},
+			},
+		},
+	}
+
+	// Create test server
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != "GET" {
+			t.Errorf("Expected GET request, got %s", r.Method)
+		}
+		if r.Header.Get("User-Agent") != "AppReviewPoller/1.0" {
+			t.Errorf("Expected User-Agent header 'AppReviewPoller/1.0', got %s", r.Header.Get("User-Agent"))
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(mockFeed)
+	}))
+	defer server.Close()
+
+	logger := log.New(io.Discard, "", 0)
+	poller := NewPoller(logger, []string{}, time.Second)
+
+	reviews, err := poller.fetchReviews(server.URL, "123")
+	if err != nil {
+		t.Fatalf("fetchReviews failed: %v", err)
+	}
+
+	if len(reviews) != 1 {
+		t.Fatalf("Expected 1 review, got %d", len(reviews))
+	}
+
+	review := reviews[0]
+	if review.AppID != "123" {
+		t.Errorf("Expected AppID '123', got '%s'", review.AppID)
+	}
+	if review.Author != "John Doe" {
+		t.Errorf("Expected Author 'John Doe', got '%s'", review.Author)
+	}
+	if review.Content != "Great app!" {
+		t.Errorf("Expected Content 'Great app!', got '%s'", review.Content)
+	}
+	if review.Rating != 5 {
+		t.Errorf("Expected Rating 5, got %d", review.Rating)
+	}
+}
+
+func TestPoller_fetchReviewsHTTPError(t *testing.T) {
+	// Create test server that returns 500 error
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	logger := log.New(io.Discard, "", 0)
+	poller := NewPoller(logger, []string{}, time.Second)
+
+	_, err := poller.fetchReviews(server.URL, "123")
+	if err == nil {
+		t.Fatal("Expected error for HTTP 500, got nil")
+	}
+	if !strings.Contains(err.Error(), "unexpected status code: 500") {
+		t.Errorf("Expected status code error, got: %v", err)
+	}
+}
+
+func TestPoller_fetchReviewsInvalidJSON(t *testing.T) {
+	// Create test server that returns invalid JSON
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte("invalid json"))
+	}))
+	defer server.Close()
+
+	logger := log.New(io.Discard, "", 0)
+	poller := NewPoller(logger, []string{}, time.Second)
+
+	_, err := poller.fetchReviews(server.URL, "123")
+	if err == nil {
+		t.Fatal("Expected error for invalid JSON, got nil")
+	}
+	if !strings.Contains(err.Error(), "failed to decode RSS feed") {
+		t.Errorf("Expected decode error, got: %v", err)
+	}
+}
+
+func TestPoller_fetchReviewsEmptyFeed(t *testing.T) {
+	// Create mock empty RSS feed response
+	mockFeed := RSSFeed{
+		Feed: struct {
+			Entry []RSSEntry `json:"entry"`
+		}{
+			Entry: []RSSEntry{},
+		},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(mockFeed)
+	}))
+	defer server.Close()
+
+	logger := log.New(io.Discard, "", 0)
+	poller := NewPoller(logger, []string{}, time.Second)
+
+	reviews, err := poller.fetchReviews(server.URL, "123")
+	if err != nil {
+		t.Fatalf("fetchReviews failed: %v", err)
+	}
+
+	if len(reviews) != 0 {
+		t.Fatalf("Expected 0 reviews, got %d", len(reviews))
+	}
+}
+
+func TestPoller_parseReviewEntry(t *testing.T) {
+	logger := log.New(io.Discard, "", 0)
+	poller := NewPoller(logger, []string{}, time.Second)
+
+	entry := RSSEntry{
+		Author: struct {
+			Name struct {
+				Label string `json:"label"`
+			} `json:"name"`
+		}{
+			Name: struct {
+				Label string `json:"label"`
+			}{Label: "Jane Smith"},
+		},
+		Content: struct {
+			Label string `json:"label"`
+		}{Label: "Amazing functionality!"},
+		Rating: struct {
+			Label string `json:"label"`
+		}{Label: "4"},
+		Updated: struct {
+			Label string `json:"label"`
+		}{Label: "2023-02-20T15:45:30Z"},
+		ID: struct {
+			Label string `json:"label"`
+		}{Label: "https://itunes.apple.com/us/review?id=456&type=Purple+Software"},
+	}
+
+	fetchedAt := time.Now()
+	review, err := poller.parseReviewEntry(entry, "789", fetchedAt)
+	if err != nil {
+		t.Fatalf("parseReviewEntry failed: %v", err)
+	}
+
+	if review.ID != "https://itunes.apple.com/us/review?id=456&type=Purple+Software" {
+		t.Errorf("Expected ID 'https://itunes.apple.com/us/review?id=456&type=Purple+Software', got '%s'", review.ID)
+	}
+	if review.AppID != "789" {
+		t.Errorf("Expected AppID '789', got '%s'", review.AppID)
+	}
+	if review.Author != "Jane Smith" {
+		t.Errorf("Expected Author 'Jane Smith', got '%s'", review.Author)
+	}
+	if review.Content != "Amazing functionality!" {
+		t.Errorf("Expected Content 'Amazing functionality!', got '%s'", review.Content)
+	}
+	if review.Rating != 4 {
+		t.Errorf("Expected Rating 4, got %d", review.Rating)
+	}
+
+	expectedTime, _ := time.Parse(time.RFC3339, "2023-02-20T15:45:30Z")
+	if !review.SubmittedAt.Equal(expectedTime) {
+		t.Errorf("Expected SubmittedAt %v, got %v", expectedTime, review.SubmittedAt)
+	}
+	if !review.FetchedAt.Equal(fetchedAt) {
+		t.Errorf("Expected FetchedAt %v, got %v", fetchedAt, review.FetchedAt)
+	}
+}
+
+func TestPoller_parseReviewEntryInvalidRating(t *testing.T) {
+	logger := log.New(io.Discard, "", 0)
+	poller := NewPoller(logger, []string{}, time.Second)
+
+	entry := RSSEntry{
+		Rating: struct {
+			Label string `json:"label"`
+		}{Label: "invalid"},
+		Updated: struct {
+			Label string `json:"label"`
+		}{Label: "2023-02-20T15:45:30Z"},
+	}
+
+	_, err := poller.parseReviewEntry(entry, "789", time.Now())
+	if err == nil {
+		t.Fatal("Expected error for invalid rating, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid rating") {
+		t.Errorf("Expected rating error, got: %v", err)
+	}
+}
+
+func TestPoller_parseReviewEntryInvalidTimestamp(t *testing.T) {
+	logger := log.New(io.Discard, "", 0)
+	poller := NewPoller(logger, []string{}, time.Second)
+
+	entry := RSSEntry{
+		Rating: struct {
+			Label string `json:"label"`
+		}{Label: "5"},
+		Updated: struct {
+			Label string `json:"label"`
+		}{Label: "invalid-timestamp"},
+	}
+
+	_, err := poller.parseReviewEntry(entry, "789", time.Now())
+	if err == nil {
+		t.Fatal("Expected error for invalid timestamp, got nil")
+	}
+	if !strings.Contains(err.Error(), "invalid timestamp") {
+		t.Errorf("Expected timestamp error, got: %v", err)
+	}
+}
+
+func TestPoller_fetchReviewsMalformedEntries(t *testing.T) {
+	var buf testutil.SafeBuffer
+	logger := log.New(&buf, "", 0)
+
+	// Create mock RSS feed with one valid and one invalid entry
+	mockFeed := RSSFeed{
+		Feed: struct {
+			Entry []RSSEntry `json:"entry"`
+		}{
+			Entry: []RSSEntry{
+				{
+					Author: struct {
+						Name struct {
+							Label string `json:"label"`
+						} `json:"name"`
+					}{
+						Name: struct {
+							Label string `json:"label"`
+						}{Label: "Valid User"},
+					},
+					Content: struct {
+						Label string `json:"label"`
+					}{Label: "Good app"},
+					Rating: struct {
+						Label string `json:"label"`
+					}{Label: "5"},
+					Updated: struct {
+						Label string `json:"label"`
+					}{Label: "2023-01-15T10:30:00Z"},
+					ID: struct {
+						Label string `json:"label"`
+					}{Label: "https://itunes.apple.com/us/review?id=123"},
+				},
+				{
+					// Invalid entry - bad rating
+					Rating: struct {
+						Label string `json:"label"`
+					}{Label: "invalid"},
+					Updated: struct {
+						Label string `json:"label"`
+					}{Label: "2023-01-15T10:30:00Z"},
+				},
+			},
+		},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(mockFeed)
+	}))
+	defer server.Close()
+
+	poller := NewPoller(logger, []string{}, time.Second)
+
+	reviews, err := poller.fetchReviews(server.URL, "123")
+	if err != nil {
+		t.Fatalf("fetchReviews failed: %v", err)
+	}
+
+	// Should have 1 valid review (invalid one skipped)
+	if len(reviews) != 1 {
+		t.Fatalf("Expected 1 review, got %d", len(reviews))
+	}
+
+	// Check that warning was logged for malformed entry
+	logOutput := buf.String()
+	if !strings.Contains(logOutput, "Warning: failed to parse review entry") {
+		t.Errorf("Expected warning for malformed entry, got: %s", logOutput)
+	}
+}
+
+func TestNewPoller_HTTPClientConfiguration(t *testing.T) {
+	logger := log.New(io.Discard, "", 0)
+	poller := NewPoller(logger, []string{"123"}, time.Second)
+
+	if poller.client == nil {
+		t.Fatal("HTTP client should be initialized")
+	}
+	if poller.client.Timeout != 30*time.Second {
+		t.Errorf("Expected HTTP client timeout 30s, got %v", poller.client.Timeout)
 	}
 }
