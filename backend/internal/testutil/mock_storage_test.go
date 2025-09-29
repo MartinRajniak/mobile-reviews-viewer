@@ -189,3 +189,149 @@ func TestMockStorage_StateOperations(t *testing.T) {
 		t.Errorf("LoadState should not error by default, got %v", err)
 	}
 }
+
+func TestMockStorage_GetRecentReviews(t *testing.T) {
+	storage := NewMockStorage()
+
+	// Add test reviews with different timestamps and apps
+	now := time.Now()
+	reviews := []models.Review{
+		{
+			ID:          "review1",
+			AppID:       "app1",
+			Author:      "User1",
+			Content:     "Recent review",
+			Rating:      5,
+			SubmittedAt: now.Add(-1 * time.Hour), // 1 hour ago
+			FetchedAt:   now,
+		},
+		{
+			ID:          "review2",
+			AppID:       "app1",
+			Author:      "User2",
+			Content:     "Old review",
+			Rating:      4,
+			SubmittedAt: now.Add(-72 * time.Hour), // 3 days ago
+			FetchedAt:   now,
+		},
+		{
+			ID:          "review3",
+			AppID:       "app2",
+			Author:      "User3",
+			Content:     "Different app review",
+			Rating:      3,
+			SubmittedAt: now.Add(-1 * time.Hour), // 1 hour ago
+			FetchedAt:   now,
+		},
+	}
+
+	err := storage.SaveReviews(reviews)
+	if err != nil {
+		t.Fatalf("Failed to save reviews: %v", err)
+	}
+
+	// Test getting recent reviews for app1 within 48 hours
+	recentReviews, err := storage.GetRecentReviews("app1", 48*time.Hour)
+	if err != nil {
+		t.Fatalf("GetRecentReviews failed: %v", err)
+	}
+
+	// Should only return review1 (app1 and within 48h)
+	if len(recentReviews) != 1 {
+		t.Errorf("Expected 1 recent review for app1, got %d", len(recentReviews))
+	}
+
+	if len(recentReviews) > 0 && recentReviews[0].ID != "review1" {
+		t.Errorf("Expected review1, got %s", recentReviews[0].ID)
+	}
+
+	// Test with shorter time window
+	recentReviews, err = storage.GetRecentReviews("app1", 30*time.Minute)
+	if err != nil {
+		t.Fatalf("GetRecentReviews failed: %v", err)
+	}
+
+	// Should return no reviews (none within 30 minutes)
+	if len(recentReviews) != 0 {
+		t.Errorf("Expected 0 recent reviews within 30 minutes, got %d", len(recentReviews))
+	}
+
+	// Test with different app
+	recentReviews, err = storage.GetRecentReviews("app2", 48*time.Hour)
+	if err != nil {
+		t.Fatalf("GetRecentReviews failed: %v", err)
+	}
+
+	// Should return review3
+	if len(recentReviews) != 1 {
+		t.Errorf("Expected 1 recent review for app2, got %d", len(recentReviews))
+	}
+
+	if len(recentReviews) > 0 && recentReviews[0].ID != "review3" {
+		t.Errorf("Expected review3, got %s", recentReviews[0].ID)
+	}
+}
+
+func TestMockStorage_GetRecentReviewsError(t *testing.T) {
+	storage := NewMockStorage()
+	testErr := errors.New("get recent reviews failed")
+	storage.SetGetRecentReviewsError(testErr)
+
+	_, err := storage.GetRecentReviews("app1", 24*time.Hour)
+	if err != testErr {
+		t.Errorf("Expected GetRecentReviews error, got %v", err)
+	}
+}
+
+func TestMockStorage_GetAllReviewsError(t *testing.T) {
+	storage := NewMockStorage()
+	testErr := errors.New("get all reviews failed")
+	storage.SetGetAllReviewsError(testErr)
+
+	_, err := storage.GetAllReviews()
+	if err != testErr {
+		t.Errorf("Expected GetAllReviews error, got %v", err)
+	}
+}
+
+func TestMockStorage_ErrorReset(t *testing.T) {
+	storage := NewMockStorage()
+
+	// Set various errors
+	storage.SetSaveError(errors.New("save error"))
+	storage.SetLoadError(errors.New("load error"))
+	storage.SetGetRecentReviewsError(errors.New("get recent error"))
+	storage.SetGetAllReviewsError(errors.New("get all error"))
+
+	// Add some data
+	reviews := []models.Review{{ID: "test", AppID: "app1"}}
+	// This should fail due to save error
+	err := storage.SaveReviews(reviews)
+	if err == nil {
+		t.Error("Expected save error before reset")
+	}
+
+	// Reset should clear all errors
+	storage.Reset()
+
+	// Now operations should work
+	err = storage.SaveReviews(reviews)
+	if err != nil {
+		t.Errorf("Expected no save error after reset, got %v", err)
+	}
+
+	err = storage.LoadState()
+	if err != nil {
+		t.Errorf("Expected no load error after reset, got %v", err)
+	}
+
+	_, err = storage.GetRecentReviews("app1", 24*time.Hour)
+	if err != nil {
+		t.Errorf("Expected no GetRecentReviews error after reset, got %v", err)
+	}
+
+	_, err = storage.GetAllReviews()
+	if err != nil {
+		t.Errorf("Expected no GetAllReviews error after reset, got %v", err)
+	}
+}

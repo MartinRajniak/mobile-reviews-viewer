@@ -6,6 +6,7 @@ import (
     "os"
     "path/filepath"
     "sync"
+    "time"
 
 	"backend/internal/models"
 )
@@ -111,6 +112,24 @@ func (fs *FileStorage) SaveState() error {
     defer fs.mu.Unlock()
 
     return fs.persist()
+}
+
+// GetRecentReviews returns reviews from the last N duration for a specific app
+func (fs *FileStorage) GetRecentReviews(appID string, since time.Duration) ([]models.Review, error) {
+    fs.mu.RLock()
+    defer fs.mu.RUnlock()
+
+    cutoff := time.Now().Add(-since)
+    result := make([]models.Review, 0)
+
+    for _, review := range fs.reviews {
+        // Filter by app ID and time
+        if review.AppID == appID && review.SubmittedAt.After(cutoff) {
+            result = append(result, review)
+        }
+    }
+
+    return result, nil
 }
 
 // GetAllReviews returns all stored reviews

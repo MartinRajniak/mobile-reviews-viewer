@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"sync"
+	"time"
 
 	"backend/internal/models"
 	"backend/internal/storage"
@@ -9,10 +10,12 @@ import (
 
 // MockStorage implements storage.Storage interface for testing
 type MockStorage struct {
-	mu      sync.RWMutex
-	reviews map[string]models.Review
-	saveErr error
-	loadErr error
+	mu                     sync.RWMutex
+	reviews                map[string]models.Review
+	saveErr                error
+	loadErr                error
+	getRecentReviewsErr    error
+	getAllReviewsErr       error
 }
 
 // Verify interface implementation at compile time
@@ -36,7 +39,32 @@ func (m *MockStorage) SaveReviews(reviews []models.Review) error {
 	return nil
 }
 
+func (m *MockStorage) GetRecentReviews(appID string, since time.Duration) ([]models.Review, error) {
+	if m.getRecentReviewsErr != nil {
+		return nil, m.getRecentReviewsErr
+	}
+
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	cutoff := time.Now().Add(-since)
+	result := make([]models.Review, 0)
+
+	for _, review := range m.reviews {
+		// Filter by app ID and time
+		if review.AppID == appID && review.SubmittedAt.After(cutoff) {
+			result = append(result, review)
+		}
+	}
+
+	return result, nil
+}
+
 func (m *MockStorage) GetAllReviews() ([]models.Review, error) {
+	if m.getAllReviewsErr != nil {
+		return nil, m.getAllReviewsErr
+	}
+
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 	result := make([]models.Review, 0, len(m.reviews))
@@ -62,6 +90,14 @@ func (m *MockStorage) SetLoadError(err error) {
 	m.loadErr = err
 }
 
+func (m *MockStorage) SetGetRecentReviewsError(err error) {
+	m.getRecentReviewsErr = err
+}
+
+func (m *MockStorage) SetGetAllReviewsError(err error) {
+	m.getAllReviewsErr = err
+}
+
 func (m *MockStorage) GetSavedReviewCount() int {
 	m.mu.RLock()
 	defer m.mu.RUnlock()
@@ -75,6 +111,8 @@ func (m *MockStorage) Reset() {
 	m.reviews = make(map[string]models.Review)
 	m.saveErr = nil
 	m.loadErr = nil
+	m.getRecentReviewsErr = nil
+	m.getAllReviewsErr = nil
 }
 
 // HasReview checks if a review with the given ID exists

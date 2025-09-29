@@ -376,6 +376,384 @@ func TestFileStorage_LargeDataSet(t *testing.T) {
     }
 }
 
+func TestFileStorage_GetRecentReviews_BasicFiltering(t *testing.T) {
+    tempDir := t.TempDir()
+    testFile := filepath.Join(tempDir, "recent_reviews.json")
+
+    storage, _ := NewFileStorage(testFile)
+
+    // Create test reviews with different timestamps and apps
+    now := time.Now()
+    reviews := []models.Review{
+        {
+            ID:          "review1",
+            AppID:       "app1",
+            Author:      "User1",
+            Content:     "Recent review",
+            Rating:      5,
+            SubmittedAt: now.Add(-1 * time.Hour), // 1 hour ago
+            FetchedAt:   now,
+        },
+        {
+            ID:          "review2",
+            AppID:       "app1",
+            Author:      "User2",
+            Content:     "Old review",
+            Rating:      4,
+            SubmittedAt: now.Add(-72 * time.Hour), // 3 days ago
+            FetchedAt:   now,
+        },
+        {
+            ID:          "review3",
+            AppID:       "app2",
+            Author:      "User3",
+            Content:     "Different app review",
+            Rating:      3,
+            SubmittedAt: now.Add(-1 * time.Hour), // 1 hour ago
+            FetchedAt:   now,
+        },
+        {
+            ID:          "review4",
+            AppID:       "app1",
+            Author:      "User4",
+            Content:     "Very recent review",
+            Rating:      5,
+            SubmittedAt: now.Add(-30 * time.Minute), // 30 minutes ago
+            FetchedAt:   now,
+        },
+    }
+
+    err := storage.SaveReviews(reviews)
+    if err != nil {
+        t.Fatalf("Failed to save reviews: %v", err)
+    }
+
+    // Test: Get reviews for app1 within 48 hours
+    recentReviews, err := storage.GetRecentReviews("app1", 48*time.Hour)
+    if err != nil {
+        t.Fatalf("GetRecentReviews failed: %v", err)
+    }
+
+    // Should return review1 and review4 (both app1 and within 48h)
+    if len(recentReviews) != 2 {
+        t.Errorf("Expected 2 reviews for app1 within 48h, got %d", len(recentReviews))
+    }
+
+    // Verify correct reviews were returned
+    reviewIDs := make([]string, len(recentReviews))
+    for i, review := range recentReviews {
+        reviewIDs[i] = review.ID
+    }
+
+    expectedIDs := []string{"review1", "review4"}
+    for _, expectedID := range expectedIDs {
+        found := false
+        for _, id := range reviewIDs {
+            if id == expectedID {
+                found = true
+                break
+            }
+        }
+        if !found {
+            t.Errorf("Expected to find review %s in results", expectedID)
+        }
+    }
+}
+
+func TestFileStorage_GetRecentReviews_TimeFiltering(t *testing.T) {
+    tempDir := t.TempDir()
+    testFile := filepath.Join(tempDir, "time_filtering.json")
+
+    storage, _ := NewFileStorage(testFile)
+
+    now := time.Now()
+    reviews := []models.Review{
+        {
+            ID:          "review1",
+            AppID:       "app1",
+            Author:      "User1",
+            Content:     "Very recent",
+            Rating:      5,
+            SubmittedAt: now.Add(-30 * time.Minute), // 30 minutes ago
+            FetchedAt:   now,
+        },
+        {
+            ID:          "review2",
+            AppID:       "app1",
+            Author:      "User2",
+            Content:     "Recent",
+            Rating:      4,
+            SubmittedAt: now.Add(-2 * time.Hour), // 2 hours ago
+            FetchedAt:   now,
+        },
+        {
+            ID:          "review3",
+            AppID:       "app1",
+            Author:      "User3",
+            Content:     "Old",
+            Rating:      3,
+            SubmittedAt: now.Add(-25 * time.Hour), // 25 hours ago
+            FetchedAt:   now,
+        },
+    }
+
+    storage.SaveReviews(reviews)
+
+    // Test 1: Within 1 hour - should get only review1
+    recentReviews, err := storage.GetRecentReviews("app1", 1*time.Hour)
+    if err != nil {
+        t.Fatalf("GetRecentReviews failed: %v", err)
+    }
+    if len(recentReviews) != 1 {
+        t.Errorf("Expected 1 review within 1h, got %d", len(recentReviews))
+    }
+    if len(recentReviews) > 0 && recentReviews[0].ID != "review1" {
+        t.Errorf("Expected review1, got %s", recentReviews[0].ID)
+    }
+
+    // Test 2: Within 3 hours - should get review1 and review2
+    recentReviews, err = storage.GetRecentReviews("app1", 3*time.Hour)
+    if err != nil {
+        t.Fatalf("GetRecentReviews failed: %v", err)
+    }
+    if len(recentReviews) != 2 {
+        t.Errorf("Expected 2 reviews within 3h, got %d", len(recentReviews))
+    }
+
+    // Test 3: Within 48 hours - should get all 3 reviews
+    recentReviews, err = storage.GetRecentReviews("app1", 48*time.Hour)
+    if err != nil {
+        t.Fatalf("GetRecentReviews failed: %v", err)
+    }
+    if len(recentReviews) != 3 {
+        t.Errorf("Expected 3 reviews within 48h, got %d", len(recentReviews))
+    }
+}
+
+func TestFileStorage_GetRecentReviews_AppFiltering(t *testing.T) {
+    tempDir := t.TempDir()
+    testFile := filepath.Join(tempDir, "app_filtering.json")
+
+    storage, _ := NewFileStorage(testFile)
+
+    now := time.Now()
+    reviews := []models.Review{
+        {
+            ID:          "review1",
+            AppID:       "app1",
+            Author:      "User1",
+            Content:     "App1 review",
+            Rating:      5,
+            SubmittedAt: now.Add(-1 * time.Hour),
+            FetchedAt:   now,
+        },
+        {
+            ID:          "review2",
+            AppID:       "app2",
+            Author:      "User2",
+            Content:     "App2 review",
+            Rating:      4,
+            SubmittedAt: now.Add(-1 * time.Hour),
+            FetchedAt:   now,
+        },
+        {
+            ID:          "review3",
+            AppID:       "app3",
+            Author:      "User3",
+            Content:     "App3 review",
+            Rating:      3,
+            SubmittedAt: now.Add(-1 * time.Hour),
+            FetchedAt:   now,
+        },
+    }
+
+    storage.SaveReviews(reviews)
+
+    // Test app1 filtering
+    app1Reviews, err := storage.GetRecentReviews("app1", 24*time.Hour)
+    if err != nil {
+        t.Fatalf("GetRecentReviews failed: %v", err)
+    }
+    if len(app1Reviews) != 1 {
+        t.Errorf("Expected 1 review for app1, got %d", len(app1Reviews))
+    }
+    if len(app1Reviews) > 0 && app1Reviews[0].ID != "review1" {
+        t.Errorf("Expected review1 for app1, got %s", app1Reviews[0].ID)
+    }
+
+    // Test app2 filtering
+    app2Reviews, err := storage.GetRecentReviews("app2", 24*time.Hour)
+    if err != nil {
+        t.Fatalf("GetRecentReviews failed: %v", err)
+    }
+    if len(app2Reviews) != 1 {
+        t.Errorf("Expected 1 review for app2, got %d", len(app2Reviews))
+    }
+    if len(app2Reviews) > 0 && app2Reviews[0].ID != "review2" {
+        t.Errorf("Expected review2 for app2, got %s", app2Reviews[0].ID)
+    }
+
+    // Test non-existent app
+    nonExistentReviews, err := storage.GetRecentReviews("nonexistent", 24*time.Hour)
+    if err != nil {
+        t.Fatalf("GetRecentReviews failed: %v", err)
+    }
+    if len(nonExistentReviews) != 0 {
+        t.Errorf("Expected 0 reviews for nonexistent app, got %d", len(nonExistentReviews))
+    }
+}
+
+func TestFileStorage_GetRecentReviews_EmptyStorage(t *testing.T) {
+    tempDir := t.TempDir()
+    testFile := filepath.Join(tempDir, "empty.json")
+
+    storage, _ := NewFileStorage(testFile)
+
+    // Test on empty storage
+    recentReviews, err := storage.GetRecentReviews("app1", 24*time.Hour)
+    if err != nil {
+        t.Fatalf("GetRecentReviews on empty storage failed: %v", err)
+    }
+    if len(recentReviews) != 0 {
+        t.Errorf("Expected 0 reviews from empty storage, got %d", len(recentReviews))
+    }
+}
+
+func TestFileStorage_GetRecentReviews_PersistenceAndLoad(t *testing.T) {
+    tempDir := t.TempDir()
+    testFile := filepath.Join(tempDir, "persistence.json")
+
+    // Create first storage instance and save reviews
+    storage1, _ := NewFileStorage(testFile)
+
+    now := time.Now()
+    reviews := []models.Review{
+        {
+            ID:          "review1",
+            AppID:       "app1",
+            Author:      "User1",
+            Content:     "Persistent review",
+            Rating:      5,
+            SubmittedAt: now.Add(-1 * time.Hour),
+            FetchedAt:   now,
+        },
+    }
+
+    err := storage1.SaveReviews(reviews)
+    if err != nil {
+        t.Fatalf("Failed to save reviews: %v", err)
+    }
+
+    // Create second storage instance and load from disk
+    storage2, _ := NewFileStorage(testFile)
+    err = storage2.LoadState()
+    if err != nil {
+        t.Fatalf("Failed to load state: %v", err)
+    }
+
+    // Test GetRecentReviews on loaded storage
+    recentReviews, err := storage2.GetRecentReviews("app1", 24*time.Hour)
+    if err != nil {
+        t.Fatalf("GetRecentReviews after load failed: %v", err)
+    }
+
+    if len(recentReviews) != 1 {
+        t.Errorf("Expected 1 review after load, got %d", len(recentReviews))
+    }
+
+    if len(recentReviews) > 0 && recentReviews[0].ID != "review1" {
+        t.Errorf("Expected review1 after load, got %s", recentReviews[0].ID)
+    }
+}
+
+func TestFileStorage_GetRecentReviews_ThreadSafety(t *testing.T) {
+    tempDir := t.TempDir()
+    testFile := filepath.Join(tempDir, "concurrent.json")
+
+    storage, _ := NewFileStorage(testFile)
+
+    // Add initial reviews
+    now := time.Now()
+    reviews := []models.Review{
+        {
+            ID:          "review1",
+            AppID:       "app1",
+            Author:      "User1",
+            Content:     "Concurrent review",
+            Rating:      5,
+            SubmittedAt: now.Add(-1 * time.Hour),
+            FetchedAt:   now,
+        },
+    }
+    storage.SaveReviews(reviews)
+
+    // Test concurrent reads
+    const numGoroutines = 10
+    done := make(chan error, numGoroutines)
+
+    for i := 0; i < numGoroutines; i++ {
+        go func(id int) {
+            recentReviews, err := storage.GetRecentReviews("app1", 24*time.Hour)
+            if err != nil {
+                done <- fmt.Errorf("goroutine %d: GetRecentReviews failed: %v", id, err)
+                return
+            }
+            if len(recentReviews) != 1 {
+                done <- fmt.Errorf("goroutine %d: expected 1 review, got %d", id, len(recentReviews))
+                return
+            }
+            done <- nil
+        }(i)
+    }
+
+    // Wait for all goroutines and check for errors
+    for i := 0; i < numGoroutines; i++ {
+        if err := <-done; err != nil {
+            t.Errorf("Concurrent access error: %v", err)
+        }
+    }
+}
+
+func TestFileStorage_GetRecentReviews_EdgeCaseTimes(t *testing.T) {
+    tempDir := t.TempDir()
+    testFile := filepath.Join(tempDir, "edge_times.json")
+
+    storage, _ := NewFileStorage(testFile)
+
+    now := time.Now()
+    reviews := []models.Review{
+        {
+            ID:          "review1",
+            AppID:       "app1",
+            Author:      "User1",
+            Content:     "Edge case review",
+            Rating:      5,
+            SubmittedAt: now.Add(-1 * time.Second), // Just 1 second ago
+            FetchedAt:   now,
+        },
+    }
+
+    storage.SaveReviews(reviews)
+
+    // Test very small time window (should still include the review)
+    recentReviews, err := storage.GetRecentReviews("app1", 2*time.Second)
+    if err != nil {
+        t.Fatalf("GetRecentReviews failed: %v", err)
+    }
+    if len(recentReviews) != 1 {
+        t.Errorf("Expected 1 review within 2 seconds, got %d", len(recentReviews))
+    }
+
+    // Test very small time window that excludes the review
+    recentReviews, err = storage.GetRecentReviews("app1", 500*time.Millisecond)
+    if err != nil {
+        t.Fatalf("GetRecentReviews failed: %v", err)
+    }
+    if len(recentReviews) != 0 {
+        t.Errorf("Expected 0 reviews within 500ms, got %d", len(recentReviews))
+    }
+}
+
 // Helper function for error message checking
 func contains(str, substr string) bool {
     return len(str) >= len(substr) && (str == substr || len(substr) == 0 ||
