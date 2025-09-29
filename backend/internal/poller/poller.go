@@ -8,6 +8,7 @@ import (
 
 type Poller struct {
 	logger       *log.Logger
+	appIDs       []string
 	pollInterval time.Duration
 	stopChan     chan struct{}
 	wg           sync.WaitGroup
@@ -15,12 +16,13 @@ type Poller struct {
 	started      bool
 }
 
-func NewPoller(logger *log.Logger, interval time.Duration) *Poller {
+func NewPoller(logger *log.Logger, appIDs []string, interval time.Duration) *Poller {
 	if logger == nil {
 		logger = log.Default()
 	}
 	return &Poller{
 		logger:       logger,
+		appIDs:       appIDs,
 		pollInterval: interval,
 		stopChan:     make(chan struct{}),
 	}
@@ -62,7 +64,34 @@ func (p *Poller) run() {
 func (p *Poller) pollAllAppsConcurrently() {
 	p.logger.Println("Polling all apps concurrently...")
 
-	// TODO: fetch and store reviews for apps
+	start := time.Now()
+
+	var wg sync.WaitGroup
+
+	for _, appID := range p.appIDs {
+		wg.Add(1)
+
+		// Launch goroutine for each app
+		go func(id string) {
+			defer wg.Done()
+
+			if err := p.fetchAndStore(id); err != nil {
+				p.logger.Printf("Error polling app %s: %v", id, err)
+			} else {
+				p.logger.Printf("Successfully polled app %s", id)
+			}
+		}(appID)
+	}
+
+	// Wait for all apps to complete
+	wg.Wait()
+
+	p.logger.Printf("Poll complete in %v", time.Since(start))
+}
+
+func (p *Poller) fetchAndStore(appID string) error {
+	p.logger.Printf("Fetching reviews for app %s", appID)
+    return nil
 }
 
 func (p *Poller) Stop() {

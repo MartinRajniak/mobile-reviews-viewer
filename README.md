@@ -21,12 +21,14 @@ A backend service/app that polls an iOS app’s App Store Connect RSS feed to fe
 ```
 backend/
 ├── main.go
+├── config/
+│   ├── apps.json            # Application IDs to poll for
 ├── internal/
 │   ├── poller/
 │   │   ├── poller.go        # RSS polling logic
 │   │   └── poller_test.go
-│   └── models/
-│       └── review.go        # Data models
+│   └── testutil/
+│       └── buffer.go        # Thread-safe buffer for log testing
 ```
 
 ### How to start
