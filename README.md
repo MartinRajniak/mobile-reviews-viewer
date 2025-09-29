@@ -28,6 +28,14 @@ A Go backend service for monitoring iOS App Store reviews with concurrent pollin
 - **Comprehensive Testing**: Full test coverage with mock interfaces
 - **Error Handling**: Graceful handling of network, parsing, and storage errors
 
+### Frontend Application
+- **React + TypeScript + Vite**: Modern development stack with hot module replacement
+- **App Selector**: Switch between multiple monitored iOS apps
+- **Real-Time Updates**: Auto-refresh reviews every 5 minutes
+- **Review Display**: Card-based layout with star ratings and timestamps
+- **Responsive UI**: Clean interface for viewing recent reviews
+- **Error Handling**: User-friendly error and loading states
+
 ### Project Structure
 ```
 backend/
@@ -52,6 +60,22 @@ backend/
 │       ├── buffer.go          # Thread-safe buffer for log testing
 │       ├── mock_storage.go    # Mock storage for testing
 │       └── mock_storage_test.go # Mock storage validation (9 tests)
+
+frontend/
+├── src/
+│   ├── main.tsx               # React application entry point
+│   ├── App.tsx                # Main app component with routing
+│   ├── App.css                # Global application styles
+│   ├── components/
+│   │   ├── AppSelector.tsx    # App switcher dropdown component
+│   │   ├── ReviewList.tsx     # Review listing with auto-refresh
+│   │   └── ReviewCard.tsx     # Individual review card component
+│   ├── services/
+│   │   └── api.ts             # API client for backend endpoints
+│   └── types/
+│       └── review.ts          # TypeScript type definitions
+├── vite.config.ts             # Vite build configuration
+└── package.json               # Dependencies and scripts
 ```
 
 ## Key Components
@@ -103,15 +127,31 @@ cd backend
 go run main.go
 ```
 
+The backend server runs on `http://localhost:8080` by default.
+
+### Frontend Quick Start
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+The frontend dev server runs on `http://localhost:5173` by default.
+
 ### Configuration
-Edit `config/apps.json` to specify which iOS apps to monitor:
+
+**Backend**: Edit `backend/config/apps.json` to specify which iOS apps to monitor:
 ```json
 {
-  "apps": ["793096595", "1276551855"]
+  "apps": ["595068606", "447188370", "310633997"]
 }
 ```
 
-### Testing
+**Frontend**: The app selector in `src/components/AppSelector.tsx` should match the apps configured in the backend.
+
+### Testing & Development
+
+**Backend**:
 ```bash
 cd backend
 
@@ -125,10 +165,7 @@ go test -v ./internal/testutil
 
 # Test with coverage
 go test -cover ./...
-```
 
-### Development
-```bash
 # Format code
 go fmt ./...
 
@@ -137,6 +174,20 @@ go vet ./...
 
 # Build binary
 go build -o mobile-reviews-poller main.go
+```
+
+**Frontend**:
+```bash
+cd frontend
+
+# Run linter
+npm run lint
+
+# Build for production
+npm run build
+
+# Preview production build
+npm run preview
 ```
 
 ## API Integration
@@ -157,7 +208,22 @@ Returns recent reviews for a specific app with time filtering.
 
 **Example:**
 ```bash
-curl "http://localhost:8080/api/reviews?app_id=1276551855&hours=48"
+curl "http://localhost:8080/api/reviews?app_id=595068606&hours=48"
+```
+
+**Response:**
+```json
+[
+  {
+    "id": "12345678",
+    "app_id": "595068606",
+    "author": "John Doe",
+    "content": "Great app!",
+    "rating": 5,
+    "submitted_at": "2025-09-29T10:30:00Z",
+    "fetched_at": "2025-09-29T11:00:00Z"
+  }
+]
 ```
 
 ### GET /api/health
@@ -166,6 +232,14 @@ Returns service health status and review statistics.
 **Example:**
 ```bash
 curl "http://localhost:8080/api/health"
+```
+
+**Response:**
+```json
+{
+  "status": "healthy",
+  "total_reviews": 1234
+}
 ```
 
 ## Test Coverage

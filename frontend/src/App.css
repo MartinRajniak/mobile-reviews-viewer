@@ -1,42 +1,273 @@
+body {
+  margin: 0;
+  display: flex;
+  justify-content: center;
+}
+
 #root {
-  max-width: 1280px;
+  width: 100%;
+  max-width: 1200px;
+}
+
+/* Base styles that work for both modes */
+.app {
+  max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 20px;
+  font-family: system-ui, -apple-system, sans-serif;
+  min-height: 100vh;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+/* Light Mode (Default) */
+.app {
+  background-color: #f8f9fa;
+  color: #1a1a1a;
+}
+
+.app-header {
+  margin-bottom: 30px;
+  padding: 24px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: background-color 0.3s, box-shadow 0.3s;
+}
+
+.app-header h1 {
+  margin: 0 0 20px 0;
+  color: #1a1a1a;
+  font-size: 32px;
+  font-weight: 700;
+  transition: color 0.3s;
+}
+
+.app-selector label {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 16px;
+  transition: color 0.3s;
+  margin-right: 8px;
+}
+
+.app-selector select {
+  padding: 10px 16px;
+  font-size: 16px;
+  border: 2px solid #cbd5e0;
+  border-radius: 6px;
+  background-color: white;
+  color: #2c3e50;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.app-selector select:hover {
+  border-color: #4a5568;
+}
+
+.app-selector select:focus {
+  outline: none;
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+}
+
+.review-list h2 {
+  margin: 0 0 16px 0;
+  color: #1a1a1a;
+  font-size: 28px;
+  font-weight: 700;
+  transition: color 0.3s;
+}
+
+.review-count {
+  color: #4a5568;
+  margin-bottom: 20px;
+  font-size: 16px;
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+.reviews {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.loading, .no-reviews {
   text-align: center;
+  padding: 60px;
+  color: #2c3e50;
+  font-size: 18px;
+  font-weight: 500;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s;
 }
 
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
+.error {
+  text-align: center;
+  padding: 40px;
+  color: #c53030;
+  background-color: #fff5f5;
+  border: 2px solid #fc8181;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s;
 }
 
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
+.review-card {
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.2s;
+}
+
+.review-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+  border-color: #cbd5e0;
+}
+
+.review-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 2px solid #e2e8f0;
+  transition: border-color 0.3s;
+}
+
+.review-header .author {
+  font-weight: 700;
+  color: #1a1a1a;
+  font-size: 18px;
+  transition: color 0.3s;
+}
+
+.review-header .rating {
+  color: #d97706;
+  font-size: 20px;
+  letter-spacing: 2px;
+}
+
+.review-content {
+  color: #2d3748;
+  line-height: 1.7;
+  margin: 16px 0;
+  font-size: 16px;
+  transition: color 0.3s;
+}
+
+.review-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 2px solid #e2e8f0;
+  transition: border-color 0.3s;
+}
+
+.review-footer .date {
+  color: #718096;
+  font-size: 14px;
+  font-weight: 500;
+  transition: color 0.3s;
+}
+
+/* Dark Mode */
+@media (prefers-color-scheme: dark) {
+  .app {
+    background-color: #1a202c;
+    color: #e2e8f0;
   }
-  to {
-    transform: rotate(360deg);
+
+  .app-header {
+    background: #2d3748;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
-}
 
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
+  .app-header h1 {
+    color: #f7fafc;
   }
-}
 
-.card {
-  padding: 2em;
-}
+  .app-selector label {
+    color: #e2e8f0;
+  }
 
-.read-the-docs {
-  color: #888;
+  .app-selector select {
+    border-color: #4a5568;
+    background-color: #2d3748;
+    color: #f7fafc;
+  }
+
+  .app-selector select:hover {
+    border-color: #718096;
+  }
+
+  .app-selector select:focus {
+    border-color: #63b3ed;
+    box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.2);
+  }
+
+  .review-list h2 {
+    color: #f7fafc;
+  }
+
+  .review-count {
+    color: #cbd5e0;
+  }
+
+  .loading, .no-reviews {
+    background: #2d3748;
+    color: #e2e8f0;
+    border: 2px solid #4a5568;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .error {
+    color: #feb2b2;
+    background-color: #742a2a;
+    border-color: #fc8181;
+  }
+
+  .review-card {
+    background: #2d3748;
+    border-color: #4a5568;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+
+  .review-card:hover {
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+    border-color: #718096;
+  }
+
+  .review-header {
+    border-bottom-color: #4a5568;
+  }
+
+  .review-header .author {
+    color: #f7fafc;
+  }
+
+  .review-header .rating {
+    color: #fbbf24;
+  }
+
+  .review-content {
+    color: #e2e8f0;
+  }
+
+  .review-footer {
+    border-top-color: #4a5568;
+  }
+
+  .review-footer .date {
+    color: #a0aec0;
+  }
 }
