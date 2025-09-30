@@ -11,6 +11,7 @@ application {
 }
 
 dependencies {
+    implementation(libs.kotlin.coroutines)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
     implementation(libs.logback.classic)
