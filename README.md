@@ -7,7 +7,7 @@ A service for monitoring iOS App Store reviews with concurrent polling, persiste
 This project includes two backend implementations:
 
 - **`backend-go/`**: Go implementation with comprehensive test coverage (69 tests)
-- **`backend-kotlin/`**: Kotlin/Ktor implementation for those preferring the JVM ecosystem
+- **`backend-kotlin/`**: Kotlin/Ktor implementation with 18 tests, configurable polling, and coroutine-based concurrency
 
 Both backends provide the same REST API for the React frontend.
 
@@ -73,8 +73,21 @@ backend-go/                        # Go implementation
 
 backend-kotlin/                 # Kotlin/Ktor implementation
 ├── src/
-│   └── main/kotlin/com/example/
-└── build.gradle.kts           # Gradle build configuration
+│   ├── main/kotlin/com/example/
+│   │   ├── Application.kt      # Application entry point and config loading
+│   │   ├── Routing.kt          # HTTP routes configuration
+│   │   └── Polling.kt          # Concurrent polling service with coroutines
+│   ├── main/resources/
+│   │   ├── application.yaml    # Ktor server and polling configuration
+│   │   ├── config.json         # Application IDs to monitor
+│   │   └── logback.xml         # Logging configuration
+│   └── test/kotlin/com/example/
+│       ├── ApplicationTest.kt  # Application integration tests (1 test)
+│       ├── ConfigTest.kt       # Configuration tests (6 tests)
+│       ├── PollingTest.kt      # Polling service tests (6 tests)
+│       └── RoutingTest.kt      # HTTP routing tests (5 tests)
+├── build.gradle.kts            # Gradle build configuration
+└── run.sh                      # Helper script for running with proper shutdown logs
 
 frontend/
 ├── src/
@@ -96,28 +109,30 @@ frontend/
 
 ## Key Components
 
-### Poller Engine (`internal/poller/`)
+### Go Backend Components
+
+#### Poller Engine (`internal/poller/`)
 - **Concurrent Processing**: Polls multiple app RSS feeds simultaneously
 - **HTTP Client**: 30-second timeout with proper User-Agent headers
 - **Review Fetching**: Gets 50 most recent reviews per app from iTunes RSS API
 - **Error Recovery**: Continues polling other apps if one fails
 - **Review Parsing**: Converts iTunes RSS format to internal Review model
 
-### Storage System (`internal/storage/`)
+#### Storage System (`internal/storage/`)
 - **Interface-Based Design**: Pluggable storage backends
 - **File Storage**: JSON persistence with atomic writes (temp file + rename)
 - **Thread Safety**: Concurrent read/write operations with RWMutex
 - **Data Integrity**: Review deduplication by ID
 - **Time-Based Queries**: GetRecentReviews with configurable time window
 
-### HTTP API (`internal/handler/`)
+#### HTTP API (`internal/handler/`)
 - **REST Endpoints**: JSON API for accessing stored reviews
 - **Time Filtering**: Configurable hours parameter (default: 30 days)
 - **Health Monitoring**: Health check endpoint with storage stats
 - **CORS Support**: Cross-origin requests enabled
 - **Error Handling**: Proper HTTP status codes and error responses
 
-### Review Model (`internal/models/`)
+#### Review Model (`internal/models/`)
 ```go
 type Review struct {
     ID          string    `json:"id"`           // Unique iTunes review ID
@@ -130,10 +145,34 @@ type Review struct {
 }
 ```
 
-### Test Infrastructure (`internal/testutil/`)
+#### Test Infrastructure (`internal/testutil/`)
 - **MockStorage**: Full storage interface implementation for testing
 - **SafeBuffer**: Thread-safe buffer for concurrent log testing
 - **Test Utilities**: Reusable components for comprehensive test coverage
+
+### Kotlin Backend Components
+
+#### Polling Service (`Polling.kt`)
+- **Coroutine-Based Concurrency**: Uses Kotlin coroutines for non-blocking concurrent polling
+- **SupervisorJob**: Ensures one app failure doesn't stop polling for other apps
+- **Configurable Interval**: Poll interval configured in `application.yaml` (default: 300 seconds)
+- **Graceful Shutdown**: Proper cleanup with coroutine cancellation and `finally` block
+- **Concurrent App Fetching**: Launches parallel coroutines for each app using `Dispatchers.IO`
+
+#### Configuration (`Application.kt`)
+- **JSON Config Loading**: Deserializes `config.json` using kotlinx.serialization
+- **Resource-Based**: Loads configuration from classpath resources
+- **Type-Safe**: Uses Kotlin data classes for configuration
+- **Set-Based Deduplication**: Automatically handles duplicate app IDs
+
+#### HTTP Routes (`Routing.kt`)
+- **Ktor Routing DSL**: Clean, declarative route definitions
+- **Extensible**: Easy to add new endpoints for reviews API
+
+#### Configuration Files
+- **`application.yaml`**: Server port (8080) and polling interval configuration
+- **`config.json`**: List of iOS app IDs to monitor
+- **`logback.xml`**: Structured logging with timestamps and log levels
 
 ## Usage
 
@@ -149,9 +188,14 @@ go run main.go
 ```bash
 cd backend-kotlin
 ./gradlew run
+
+# Or for proper shutdown logging, run the JAR directly:
+./run.sh
 ```
 
 Both backend servers run on `http://localhost:8080` by default.
+
+**Note**: The Kotlin backend's polling interval can be configured in `src/main/resources/application.yaml`.
 
 ### Frontend Quick Start
 ```bash
@@ -164,11 +208,19 @@ The frontend dev server runs on `http://localhost:5173` by default.
 
 ### Configuration
 
-**Backend**: Edit `backend/config/apps.json` to specify which iOS apps to monitor:
+**Go Backend**: Edit `backend/config/apps.json` to specify which iOS apps to monitor:
 ```json
 {
   "apps": ["595068606", "447188370", "310633997"]
 }
+```
+
+**Kotlin Backend**: Edit `backend-kotlin/src/main/resources/config.json` (same format as above).
+
+You can also configure the polling interval in `backend-kotlin/src/main/resources/application.yaml`:
+```yaml
+polling:
+    intervalSeconds: 300  # 5 minutes (default)
 ```
 
 **Frontend**: The app selector in `src/components/AppSelector.tsx` should match the apps configured in the backend.
@@ -204,14 +256,20 @@ go build -o mobile-reviews-poller main.go
 ```bash
 cd backend-kotlin
 
-# Run tests
+# Run tests (18 tests total)
 ./gradlew test
+
+# Test with coverage
+./gradlew test jacocoTestReport
 
 # Build project
 ./gradlew build
 
 # Build fat JAR
 ./gradlew buildFatJar
+
+# Run directly (recommended for proper shutdown logs)
+./run.sh
 
 # Build docker image
 ./gradlew buildImage
@@ -294,13 +352,21 @@ curl "http://localhost:8080/api/health"
 
 ## Test Coverage
 
-### Backend
+### Go Backend
 - **69 total tests** across all packages
 - **Poller**: 25 tests covering HTTP requests, parsing, and error handling
 - **Storage**: 18 tests covering file I/O, concurrency, and edge cases
 - **Handler**: 17 tests covering HTTP endpoints and API functionality
 - **Test Utils**: 9 tests validating mock implementations
 - **Coverage Areas**: Happy path, error conditions, edge cases, concurrency
+
+### Kotlin Backend
+- **18 total tests** across all components
+- **Application**: 1 test for full application integration
+- **Config**: 6 tests covering JSON deserialization, deduplication, and data class functionality
+- **Polling**: 6 tests covering concurrent polling, SupervisorJob, and various app configurations
+- **Routing**: 5 tests covering HTTP endpoints, methods, and response validation
+- **Coverage Areas**: Configuration loading, coroutine concurrency, HTTP routing, error handling
 
 ### Frontend
 - **5 tests** for API service

@@ -4,3 +4,5 @@ ktor:
             - com.example.ApplicationKt.module
     deployment:
         port: 8080
+polling:
+    intervalSeconds: 300  # 5 minutes
