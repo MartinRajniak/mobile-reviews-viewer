@@ -1,11 +1,20 @@
 # Mobile Reviews Viewer
 
-A Go backend service for monitoring iOS App Store reviews with concurrent polling, persistent storage, and HTTP API endpoints.
+A service for monitoring iOS App Store reviews with concurrent polling, persistent storage, and HTTP API endpoints. Available in two backend implementations: Go and Kotlin (Ktor).
+
+## Backend Implementations
+
+This project includes two backend implementations:
+
+- **`backend-go/`**: Go implementation with comprehensive test coverage (69 tests)
+- **`backend-kotlin/`**: Kotlin/Ktor implementation for those preferring the JVM ecosystem
+
+Both backends provide the same REST API for the React frontend.
 
 ## Architecture
 ```
 ┌─────────────┐      ┌──────────────┐      ┌─────────────┐
-│   RSS Feed  │ ───> │  Go Backend  │ <──> │  React UI   │
+│   RSS Feed  │ ───> │   Backend    │ <──> │  React UI   │
 │ (App Store) │      │   (Poller)   │      │  (Viewer)   │
 └─────────────┘      └──────────────┘      └─────────────┘
                             │
@@ -39,7 +48,7 @@ A Go backend service for monitoring iOS App Store reviews with concurrent pollin
 
 ### Project Structure
 ```
-backend/
+backend-go/                        # Go implementation
 ├── main.go                     # Application entry point with HTTP server
 ├── config/
 │   └── apps.json              # Application IDs to poll for
@@ -61,6 +70,11 @@ backend/
 │       ├── buffer.go          # Thread-safe buffer for log testing
 │       ├── mock_storage.go    # Mock storage for testing
 │       └── mock_storage_test.go # Mock storage validation (9 tests)
+
+backend-kotlin/                 # Kotlin/Ktor implementation
+├── src/
+│   └── main/kotlin/com/example/
+└── build.gradle.kts           # Gradle build configuration
 
 frontend/
 ├── src/
@@ -124,12 +138,20 @@ type Review struct {
 ## Usage
 
 ### Backend Quick Start
+
+**Go Backend:**
 ```bash
 cd backend
 go run main.go
 ```
 
-The backend server runs on `http://localhost:8080` by default.
+**Kotlin/Ktor Backend:**
+```bash
+cd backend-kotlin
+./gradlew run
+```
+
+Both backend servers run on `http://localhost:8080` by default.
 
 ### Frontend Quick Start
 ```bash
@@ -153,7 +175,7 @@ The frontend dev server runs on `http://localhost:5173` by default.
 
 ### Testing & Development
 
-**Backend**:
+**Go Backend**:
 ```bash
 cd backend
 
@@ -176,6 +198,26 @@ go vet ./...
 
 # Build binary
 go build -o mobile-reviews-poller main.go
+```
+
+**Kotlin/Ktor Backend**:
+```bash
+cd backend-kotlin
+
+# Run tests
+./gradlew test
+
+# Build project
+./gradlew build
+
+# Build fat JAR
+./gradlew buildFatJar
+
+# Build docker image
+./gradlew buildImage
+
+# Run with docker
+./gradlew runDocker
 ```
 
 **Frontend**:
