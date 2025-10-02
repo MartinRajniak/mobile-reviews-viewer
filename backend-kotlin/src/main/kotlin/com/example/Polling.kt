@@ -1,43 +1,46 @@
 package com.example
 
+import com.example.reviews.ReviewsRepository
 import io.ktor.server.application.*
+import io.ktor.util.logging.*
 import kotlinx.coroutines.*
-import kotlinx.coroutines.time.delay
-import java.time.Duration
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
 
-fun Application.configurePolling(config: Config) {
-    val pollInterval = environment.config.property("polling.intervalSeconds").getString().toLong()
+fun Application.configurePolling(reviewsRepository: ReviewsRepository): Job {
+    val pollIntervalInSeconds = environment.config.property("polling.intervalSeconds").getString().toLong()
 
-    // If one application fetch fails, continue with others
-    launch(Dispatchers.Default + SupervisorJob()) {
+    val poller = PollerService(
+        log,
+        reviewsRepository,
+        pollIntervalInSeconds.seconds
+    )
+
+    // use CoroutineScope from Application so that this coroutine is cancelled when application is terminated
+    return launch {
+        poller.start()
+    }
+}
+
+class PollerService(
+    val log: Logger,
+    val reviewsRepository: ReviewsRepository,
+    val pollInterval: Duration,
+) {
+    suspend fun start() {
         log.info("Starting poller service...")
         try {
-            while (isActive) {
-                try {
-                    log.info("Fetching reviews...")
-                    loadReviewsConcurrently(config)
-                    delay(pollInterval)
-                } catch (e: CancellationException) {
-                    log.info("Polling service was cancelled.", e)
-                    throw e
-                } catch (e: Exception) {
-                    log.error("Error in polling service", e)
-                }
+            while (currentCoroutineContext().isActive) {
+                reviewsRepository.updateReviews()
+                delay(pollInterval)
             }
+        } catch (e: CancellationException) {
+            log.info("Polling service was cancelled.")
+            throw e
+        } catch (e: Exception) {
+            log.error("Error in polling service", e)
         } finally {
             log.info("Polling service stopped.")
         }
     }
-}
-
-private suspend fun Application.loadReviewsConcurrently(config: Config) = coroutineScope {
-    val jobs = mutableSetOf<Job>()
-    for (appId in config.apps) {
-        val job = launch(Dispatchers.IO) {
-            log.info("Fetch review for $appId")
-            // TODO: fetch and store reviews
-        }
-        jobs.add(job)
-    }
-    jobs.joinAll()
 }
