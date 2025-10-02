@@ -1,6 +1,6 @@
 package com.example.reviews.itunes
 
-import com.example.reviews.itunes.ITunesReviewsFetcher
+import com.example.testJson
 import io.ktor.client.*
 import io.ktor.client.engine.mock.*
 import io.ktor.client.plugins.contentnegotiation.*
@@ -8,7 +8,6 @@ import io.ktor.http.*
 import io.ktor.serialization.kotlinx.json.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.test.*
-import kotlinx.serialization.json.Json
 import kotlin.test.*
 
 class ITunesReviewsFetcherTest {
@@ -19,7 +18,7 @@ class ITunesReviewsFetcherTest {
     ): HttpClient {
         return HttpClient(MockEngine) {
             install(ContentNegotiation) {
-                json(Json { ignoreUnknownKeys = true })
+                json(testJson)
             }
             engine {
                 addHandler { request ->

@@ -41,7 +41,11 @@ fun Application.module() {
     log.info("Initial number of reviews is: ${reviews.size}")
 
     val pollingJob = configurePolling(reviewsRepository)
-    configureRouting()
+    configureRouting(
+        log,
+        json,
+        reviewsStorage
+    )
 
     monitor.subscribe(ApplicationStopping) {
         runBlocking {

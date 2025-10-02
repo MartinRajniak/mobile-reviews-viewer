@@ -1,10 +1,8 @@
 package com.example
 
-import kotlinx.serialization.json.Json
 import kotlin.test.*
 
 class ConfigTest {
-    private val json = Json { ignoreUnknownKeys = true }
     @Test
     fun testConfigDeserialization() {
         val jsonString = """
@@ -13,8 +11,7 @@ class ConfigTest {
             }
         """.trimIndent()
 
-        val json = Json { ignoreUnknownKeys = true }
-        val config = json.decodeFromString<Config>(jsonString)
+        val config = testJson.decodeFromString<Config>(jsonString)
 
         assertEquals(3, config.apps.size)
         assertTrue(config.apps.contains("595068606"))
@@ -30,8 +27,7 @@ class ConfigTest {
             }
         """.trimIndent()
 
-        val json = Json { ignoreUnknownKeys = true }
-        val config = json.decodeFromString<Config>(jsonString)
+        val config = testJson.decodeFromString<Config>(jsonString)
 
         assertEquals(0, config.apps.size)
     }
@@ -45,8 +41,7 @@ class ConfigTest {
             }
         """.trimIndent()
 
-        val json = Json { ignoreUnknownKeys = true }
-        val config = json.decodeFromString<Config>(jsonString)
+        val config = testJson.decodeFromString<Config>(jsonString)
 
         assertEquals(1, config.apps.size)
         assertTrue(config.apps.contains("595068606"))
@@ -60,8 +55,7 @@ class ConfigTest {
             }
         """.trimIndent()
 
-        val json = Json { ignoreUnknownKeys = true }
-        val config = json.decodeFromString<Config>(jsonString)
+        val config = testJson.decodeFromString<Config>(jsonString)
 
         // Set should deduplicate
         assertEquals(2, config.apps.size)
@@ -71,7 +65,7 @@ class ConfigTest {
 
     @Test
     fun testLoadConfigFromResources() {
-        val config = loadConfig(json)
+        val config = loadConfig(testJson)
 
         assertNotNull(config)
         assertTrue(config.apps.isNotEmpty())

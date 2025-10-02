@@ -1,5 +1,7 @@
 package com.example.reviews
 
+import com.example.FakeReviewsFetcher
+import com.example.FakeReviewsStorage
 import kotlinx.coroutines.test.*
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
@@ -7,35 +9,6 @@ import kotlin.test.*
 
 class ReviewsRepositoryTest {
     private val testLogger: Logger = LoggerFactory.getLogger(ReviewsRepositoryTest::class.java)
-
-    private class FakeReviewsFetcher(
-        private val shouldFail: Boolean = false,
-        private val failForAppIds: Set<String> = emptySet()
-    ) : ReviewsFetcher {
-        val fetchedAppIds = mutableListOf<String>()
-
-        override suspend fun fetchReviews(appId: String): List<Review> {
-            fetchedAppIds.add(appId)
-            if (shouldFail || appId in failForAppIds) {
-                throw Exception("Failed to fetch reviews for $appId")
-            }
-            return emptyList()
-        }
-    }
-
-    private class FakeReviewsStorage : ReviewsStorage {
-        val savedReviews = mutableListOf<Review>()
-
-        override fun saveReviews(reviews: List<Review>) {
-            savedReviews.addAll(reviews)
-        }
-
-        override fun getAllReviews(): List<Review> = savedReviews
-
-        override suspend fun loadState() {}
-
-        override suspend fun saveState() {}
-    }
 
     @Test
     fun testUpdateReviewsWithMultipleApps() = runTest {

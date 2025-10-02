@@ -13,6 +13,7 @@ import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.io.path.exists
+import kotlin.time.Instant
 
 class ReviewsFileStorage(
     private val logger: Logger,
@@ -41,7 +42,7 @@ class ReviewsFileStorage(
         }
         try {
             val jsonString = withContext(Dispatchers.IO) {
-                 Files.readString(path, StandardCharsets.UTF_8)
+                Files.readString(path, StandardCharsets.UTF_8)
             }
             val reviews = json.decodeFromString<List<Review>>(jsonString)
             allReviews.clear()
@@ -88,4 +89,7 @@ class ReviewsFileStorage(
     override fun getAllReviews(): List<Review> {
         return allReviews.values.toList()
     }
+
+    override fun getRecentReviews(appId: String?, since: Instant) =
+        allReviews.values.filter { it.appId == appId && it.submittedAt > since }.sortedByDescending { it.submittedAt }
 }

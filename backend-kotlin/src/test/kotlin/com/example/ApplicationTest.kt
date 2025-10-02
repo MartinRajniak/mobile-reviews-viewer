@@ -4,17 +4,20 @@ import io.ktor.client.request.*
 import io.ktor.client.statement.*
 import io.ktor.http.*
 import io.ktor.server.testing.*
+import org.slf4j.LoggerFactory
 import kotlin.test.*
 
 class ApplicationTest {
+    private val testLogger = LoggerFactory.getLogger(ApplicationTest::class.java)
+
     @Test
-    fun testRoot() = testApplication {
+    fun testApiReviews() = testApplication {
         application {
-            configureRouting()
+            configureRouting(testLogger, testJson, FakeReviewsStorage())
         }
-        client.get("/").apply {
+        client.get("/api/reviews?app_id=test_app").apply {
             assertEquals(HttpStatusCode.OK, status)
-            assertEquals("Hello World!", bodyAsText())
+            assertEquals("[]", bodyAsText())
         }
     }
 }

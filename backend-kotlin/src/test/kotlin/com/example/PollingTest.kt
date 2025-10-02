@@ -1,9 +1,6 @@
 package com.example
 
-import com.example.reviews.Review
-import com.example.reviews.ReviewsFetcher
 import com.example.reviews.ReviewsRepository
-import com.example.reviews.ReviewsStorage
 import io.ktor.server.config.*
 import io.ktor.server.testing.*
 import kotlinx.coroutines.*
@@ -22,32 +19,6 @@ class PollingTest {
                 put("polling.intervalSeconds", "1")
             }
         }
-    }
-
-    private class FakeReviewsFetcher(private val shouldFail: Boolean = false) : ReviewsFetcher {
-        var fetchCount = 0
-
-        override suspend fun fetchReviews(appId: String): List<Review> {
-            fetchCount++
-            if (shouldFail && appId == "INVALID_APP_ID") {
-                throw Exception("Failed to fetch reviews for $appId")
-            }
-            return emptyList()
-        }
-    }
-
-    private class FakeReviewsStorage : ReviewsStorage {
-        val savedReviews = mutableListOf<Review>()
-
-        override fun saveReviews(reviews: List<Review>) {
-            savedReviews.addAll(reviews)
-        }
-
-        override fun getAllReviews(): List<Review> = savedReviews
-
-        override suspend fun loadState() {}
-
-        override suspend fun saveState() {}
     }
 
     @Test
@@ -158,7 +129,7 @@ class PollingTest {
 
     @Test
     fun testPollingContinuesWhenOneAppFails() = runTest {
-        val fetcher = FakeReviewsFetcher(shouldFail = true)
+        val fetcher = FakeReviewsFetcher(shouldFail = true, failForAppIds = setOf("INVALID_APP_ID"))
         val storage = FakeReviewsStorage()
         val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("595068606", "INVALID_APP_ID", "447188370"))
 
