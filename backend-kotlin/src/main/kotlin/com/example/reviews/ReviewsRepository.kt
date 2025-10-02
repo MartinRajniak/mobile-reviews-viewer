@@ -29,6 +29,7 @@ class ReviewsRepository(
             }
         }.joinAll()
 
+        // Wait for new reviews to be persisted
         reviewsStorage.saveState()
     }
 

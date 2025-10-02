@@ -7,7 +7,7 @@ A service for monitoring iOS App Store reviews with concurrent polling, persiste
 This project includes two backend implementations:
 
 - **`backend-go/`**: Go implementation with comprehensive test coverage (69 tests)
-- **`backend-kotlin/`**: Kotlin/Ktor implementation with 18 tests, configurable polling, and coroutine-based concurrency
+- **`backend-kotlin/`**: Kotlin/Ktor implementation with 39 tests, persistent storage, and coroutine-based concurrency
 
 Both backends provide the same REST API for the React frontend.
 
@@ -74,9 +74,18 @@ backend-go/                        # Go implementation
 backend-kotlin/                 # Kotlin/Ktor implementation
 ├── src/
 │   ├── main/kotlin/com/example/
-│   │   ├── Application.kt      # Application entry point and config loading
+│   │   ├── Application.kt      # Application entry point, config loading, and lifecycle
 │   │   ├── Routing.kt          # HTTP routes configuration
-│   │   └── Polling.kt          # Concurrent polling service with coroutines
+│   │   ├── Polling.kt          # Concurrent polling service with coroutines
+│   │   └── reviews/
+│   │       ├── Model.kt        # Review data model and interfaces
+│   │       ├── ReviewsRepository.kt # Orchestrates fetching and storage
+│   │       ├── ReviewsFetcher.kt    # Review fetching interface
+│   │       ├── itunes/
+│   │       │   ├── ITunesReviewsFetcher.kt # iTunes RSS API client
+│   │       │   └── ITunesRssTypes.kt       # iTunes RSS feed data structures
+│   │       └── file_storage/
+│   │           └── ReviewsFileStorage.kt # JSON file storage with atomic writes
 │   ├── main/resources/
 │   │   ├── application.yaml    # Ktor server and polling configuration
 │   │   ├── config.json         # Application IDs to monitor
@@ -84,8 +93,14 @@ backend-kotlin/                 # Kotlin/Ktor implementation
 │   └── test/kotlin/com/example/
 │       ├── ApplicationTest.kt  # Application integration tests (1 test)
 │       ├── ConfigTest.kt       # Configuration tests (6 tests)
-│       ├── PollingTest.kt      # Polling service tests (6 tests)
-│       └── RoutingTest.kt      # HTTP routing tests (5 tests)
+│       ├── PollingTest.kt      # Polling service tests (9 tests)
+│       ├── RoutingTest.kt      # HTTP routing tests (5 tests)
+│       └── reviews/
+│           ├── ReviewsRepositoryTest.kt # Repository tests (6 tests)
+│           ├── itunes/
+│           │   └── ITunesReviewsFetcherTest.kt # Fetcher tests (6 tests)
+│           └── file_storage/
+│               └── ReviewsFileStorageTest.kt # Storage tests (6 tests)
 ├── build.gradle.kts            # Gradle build configuration
 └── run.sh                      # Helper script for running with proper shutdown logs
 
@@ -152,25 +167,62 @@ type Review struct {
 
 ### Kotlin Backend Components
 
+#### Reviews Repository (`reviews/ReviewsRepository.kt`)
+- **Orchestration Layer**: Coordinates fetching and storage for multiple apps
+- **Concurrent Processing**: Launches parallel coroutines for each app
+- **SupervisorScope**: Isolates failures - one app failure doesn't affect others
+- **Automatic Persistence**: Saves reviews to disk after each polling cycle
+- **Error Handling**: Graceful error handling with logging per app
+
+#### Reviews Fetcher (`reviews/itunes/ITunesReviewsFetcher.kt`)
+- **iTunes RSS Integration**: Fetches reviews from iTunes RSS API
+- **Non-Blocking I/O**: Uses Ktor's suspend functions (no Dispatchers.IO needed)
+- **JSON Parsing**: kotlinx.serialization for type-safe deserialization
+- **Review Mapping**: Converts iTunes RSS format to internal Review model
+- **Metadata Tracking**: Captures both submission time and fetch time
+
+#### Storage System (`reviews/file_storage/ReviewsFileStorage.kt`)
+- **Interface-Based Design**: ReviewsStorage interface for pluggable backends
+- **Atomic Writes**: Temp file + atomic move prevents data corruption
+- **Thread-Safe**: ConcurrentHashMap for safe concurrent access
+- **Proper Dispatchers**: Uses Dispatchers.IO for blocking file operations
+- **Load on Startup**: Restores state from disk when application starts
+- **Periodic Saves**: Persists after each polling cycle and on shutdown
+- **Deduplication**: Review ID-based to prevent duplicates
+
 #### Polling Service (`Polling.kt`)
-- **Coroutine-Based Concurrency**: Uses Kotlin coroutines for non-blocking concurrent polling
-- **SupervisorJob**: Ensures one app failure doesn't stop polling for other apps
-- **Configurable Interval**: Poll interval configured in `application.yaml` (default: 300 seconds)
-- **Graceful Shutdown**: Proper cleanup with coroutine cancellation and `finally` block
-- **Concurrent App Fetching**: Launches parallel coroutines for each app using `Dispatchers.IO`
+- **Coroutine-Based**: Non-blocking concurrent polling with Kotlin coroutines
+- **Lifecycle Management**: Proper cleanup with coroutine cancellation
+- **Configurable Interval**: Poll interval from `application.yaml` (default: 300s)
+- **Graceful Shutdown**: CancelAndJoin ensures clean termination
+- **Application Scope**: Tied to Ktor application lifecycle
 
 #### Configuration (`Application.kt`)
-- **JSON Config Loading**: Deserializes `config.json` using kotlinx.serialization
-- **Resource-Based**: Loads configuration from classpath resources
-- **Type-Safe**: Uses Kotlin data classes for configuration
-- **Set-Based Deduplication**: Automatically handles duplicate app IDs
+- **JSON Config Loading**: kotlinx.serialization for type-safe deserialization
+- **Resource-Based**: Loads from classpath resources
+- **Lifecycle Hooks**: Subscribes to ApplicationStopping for cleanup
+- **State Management**: Loads reviews on startup, saves on shutdown
+- **HTTP Client Management**: Proper connection pooling and cleanup
+
+#### Review Model (`reviews/Model.kt`)
+```kotlin
+data class Review(
+    val id: String,           // Unique iTunes review ID
+    val appId: String,        // iTunes app ID
+    val author: String,       // Review author name
+    val content: String,      // Review text content
+    val rating: Int,          // Star rating (1-5)
+    val submittedAt: Instant, // When user submitted
+    val fetchedAt: Instant    // When we fetched it
+)
+```
 
 #### HTTP Routes (`Routing.kt`)
 - **Ktor Routing DSL**: Clean, declarative route definitions
-- **Extensible**: Easy to add new endpoints for reviews API
+- **Extensible**: Ready for reviews API endpoints
 
 #### Configuration Files
-- **`application.yaml`**: Server port (8080) and polling interval configuration
+- **`application.yaml`**: Server port (8080) and polling interval
 - **`config.json`**: List of iOS app IDs to monitor
 - **`logback.xml`**: Structured logging with timestamps and log levels
 
@@ -256,7 +308,7 @@ go build -o mobile-reviews-poller main.go
 ```bash
 cd backend-kotlin
 
-# Run tests (18 tests total)
+# Run tests (39 tests total)
 ./gradlew test
 
 # Test with coverage
@@ -361,12 +413,15 @@ curl "http://localhost:8080/api/health"
 - **Coverage Areas**: Happy path, error conditions, edge cases, concurrency
 
 ### Kotlin Backend
-- **18 total tests** across all components
+- **39 total tests** across all components
 - **Application**: 1 test for full application integration
 - **Config**: 6 tests covering JSON deserialization, deduplication, and data class functionality
-- **Polling**: 6 tests covering concurrent polling, SupervisorJob, and various app configurations
+- **Polling**: 9 tests covering concurrent polling, SupervisorJob, PollerService lifecycle, and error isolation
 - **Routing**: 5 tests covering HTTP endpoints, methods, and response validation
-- **Coverage Areas**: Configuration loading, coroutine concurrency, HTTP routing, error handling
+- **ReviewsRepository**: 6 tests covering concurrent fetching, supervisorScope, and error handling
+- **ITunesReviewsFetcher**: 6 tests covering HTTP client mocking, JSON parsing, and error scenarios
+- **ReviewsFileStorage**: 6 tests covering atomic writes, load/save state, deduplication, and directory creation
+- **Coverage Areas**: Configuration loading, coroutine concurrency, HTTP routing, error handling, file I/O, persistence, dispatcher usage
 
 ### Frontend
 - **5 tests** for API service
