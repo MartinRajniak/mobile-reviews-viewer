@@ -46,7 +46,7 @@ func TestHandler_GetRecentReviews_Success(t *testing.T) {
 			Author:      "User2",
 			Content:     "Older review",
 			Rating:      4,
-			SubmittedAt: now.Add(-72 * time.Hour), // 3 days ago (outside 48h window)
+			SubmittedAt: now.Add(-24 * time.Hour), // 1 day ago (within 48h window)
 			FetchedAt:   now,
 		},
 		{
@@ -86,12 +86,12 @@ func TestHandler_GetRecentReviews_Success(t *testing.T) {
 		t.Fatalf("Failed to decode response: %v", err)
 	}
 
-	// Should return both review1 and review2 (app_id=123 and within 30 days)
+	// Should return both review1 and review2 (app_id=123 and within default 48h)
 	if len(responseReviews) != 2 {
 		t.Errorf("Expected 2 reviews, got %d", len(responseReviews))
 	}
 
-	// Should be sorted by newest first, so review1 (1h ago) comes before review2 (72h ago)
+	// Should be sorted by newest first, so review1 (1h ago) comes before review2 (24h ago)
 	if len(responseReviews) >= 1 && responseReviews[0].ID != "review1" {
 		t.Errorf("Expected review1 first, got %s", responseReviews[0].ID)
 	}
