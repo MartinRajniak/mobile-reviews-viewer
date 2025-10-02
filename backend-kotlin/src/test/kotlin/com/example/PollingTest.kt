@@ -3,6 +3,7 @@ package com.example
 import com.example.reviews.Review
 import com.example.reviews.ReviewsFetcher
 import com.example.reviews.ReviewsRepository
+import com.example.reviews.ReviewsStorage
 import io.ktor.server.config.*
 import io.ktor.server.testing.*
 import kotlinx.coroutines.*
@@ -35,13 +36,28 @@ class PollingTest {
         }
     }
 
+    private class FakeReviewsStorage : ReviewsStorage {
+        val savedReviews = mutableListOf<Review>()
+
+        override fun saveReviews(reviews: List<Review>) {
+            savedReviews.addAll(reviews)
+        }
+
+        override fun getAllReviews(): List<Review> = savedReviews
+
+        override suspend fun loadState() {}
+
+        override suspend fun saveState() {}
+    }
+
     @Test
     fun testConfigurePollingStartsWithMultipleApps() = runTest {
         testApplication {
             setupEnvironment()
 
             val fetcher = FakeReviewsFetcher()
-            val repository = ReviewsRepository(testLogger, fetcher, setOf("595068606", "447188370"))
+            val storage = FakeReviewsStorage()
+            val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("595068606", "447188370"))
 
             application {
                 val job = configurePolling(repository)
@@ -59,7 +75,8 @@ class PollingTest {
             setupEnvironment()
 
             val fetcher = FakeReviewsFetcher()
-            val repository = ReviewsRepository(testLogger, fetcher, emptySet())
+            val storage = FakeReviewsStorage()
+            val repository = ReviewsRepository(testLogger, fetcher, storage, emptySet())
 
             application {
                 val job = configurePolling(repository)
@@ -77,7 +94,8 @@ class PollingTest {
             setupEnvironment()
 
             val fetcher = FakeReviewsFetcher()
-            val repository = ReviewsRepository(testLogger, fetcher, setOf("595068606"))
+            val storage = FakeReviewsStorage()
+            val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("595068606"))
 
             application {
                 val job = configurePolling(repository)
@@ -96,7 +114,8 @@ class PollingTest {
 
             val apps = (1..50).map { it.toString() }.toSet()
             val fetcher = FakeReviewsFetcher()
-            val repository = ReviewsRepository(testLogger, fetcher, apps)
+            val storage = FakeReviewsStorage()
+            val repository = ReviewsRepository(testLogger, fetcher, storage, apps)
 
             application {
                 val job = configurePolling(repository)
@@ -124,7 +143,8 @@ class PollingTest {
             setupEnvironment()
 
             val fetcher = FakeReviewsFetcher()
-            val repository = ReviewsRepository(testLogger, fetcher, setOf("595068606", "447188370", "310633997"))
+            val storage = FakeReviewsStorage()
+            val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("595068606", "447188370", "310633997"))
 
             application {
                 val job = configurePolling(repository)
@@ -139,7 +159,8 @@ class PollingTest {
     @Test
     fun testPollingContinuesWhenOneAppFails() = runTest {
         val fetcher = FakeReviewsFetcher(shouldFail = true)
-        val repository = ReviewsRepository(testLogger, fetcher, setOf("595068606", "INVALID_APP_ID", "447188370"))
+        val storage = FakeReviewsStorage()
+        val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("595068606", "INVALID_APP_ID", "447188370"))
 
         // updateReviews should complete even with failures
         repository.updateReviews()
@@ -151,7 +172,8 @@ class PollingTest {
     @Test
     fun testPollerServiceStart() = runTest {
         val fetcher = FakeReviewsFetcher()
-        val repository = ReviewsRepository(testLogger, fetcher, setOf("app1"))
+        val storage = FakeReviewsStorage()
+        val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("app1"))
         val poller = PollerService(testLogger, repository, 1.seconds)
 
         val job = launch {
@@ -171,7 +193,8 @@ class PollingTest {
     @Test
     fun testPollerServiceCancellation() = runTest {
         val fetcher = FakeReviewsFetcher()
-        val repository = ReviewsRepository(testLogger, fetcher, setOf("app1"))
+        val storage = FakeReviewsStorage()
+        val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("app1"))
         val poller = PollerService(testLogger, repository, 1.seconds)
 
         val job = launch {

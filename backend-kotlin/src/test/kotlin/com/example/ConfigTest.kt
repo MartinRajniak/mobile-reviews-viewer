@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import kotlin.test.*
 
 class ConfigTest {
+    private val json = Json { ignoreUnknownKeys = true }
     @Test
     fun testConfigDeserialization() {
         val jsonString = """
@@ -70,7 +71,7 @@ class ConfigTest {
 
     @Test
     fun testLoadConfigFromResources() {
-        val config = loadConfig()
+        val config = loadConfig(json)
 
         assertNotNull(config)
         assertTrue(config.apps.isNotEmpty())

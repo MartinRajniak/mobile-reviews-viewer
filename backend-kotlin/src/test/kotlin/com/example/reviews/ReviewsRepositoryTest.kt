@@ -23,10 +23,25 @@ class ReviewsRepositoryTest {
         }
     }
 
+    private class FakeReviewsStorage : ReviewsStorage {
+        val savedReviews = mutableListOf<Review>()
+
+        override fun saveReviews(reviews: List<Review>) {
+            savedReviews.addAll(reviews)
+        }
+
+        override fun getAllReviews(): List<Review> = savedReviews
+
+        override suspend fun loadState() {}
+
+        override suspend fun saveState() {}
+    }
+
     @Test
     fun testUpdateReviewsWithMultipleApps() = runTest {
         val fetcher = FakeReviewsFetcher()
-        val repository = ReviewsRepository(testLogger, fetcher, setOf("app1", "app2", "app3"))
+        val storage = FakeReviewsStorage()
+        val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("app1", "app2", "app3"))
 
         repository.updateReviews()
 
@@ -37,7 +52,8 @@ class ReviewsRepositoryTest {
     @Test
     fun testUpdateReviewsWithEmptyApps() = runTest {
         val fetcher = FakeReviewsFetcher()
-        val repository = ReviewsRepository(testLogger, fetcher, emptySet())
+        val storage = FakeReviewsStorage()
+        val repository = ReviewsRepository(testLogger, fetcher, storage, emptySet())
 
         repository.updateReviews()
 
@@ -47,7 +63,8 @@ class ReviewsRepositoryTest {
     @Test
     fun testUpdateReviewsWithSingleApp() = runTest {
         val fetcher = FakeReviewsFetcher()
-        val repository = ReviewsRepository(testLogger, fetcher, setOf("app1"))
+        val storage = FakeReviewsStorage()
+        val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("app1"))
 
         repository.updateReviews()
 
@@ -59,7 +76,8 @@ class ReviewsRepositoryTest {
     fun testUpdateReviewsContinuesOnFailure() = runTest {
         // One app fails, but others should still be fetched
         val fetcher = FakeReviewsFetcher(failForAppIds = setOf("app2"))
-        val repository = ReviewsRepository(testLogger, fetcher, setOf("app1", "app2", "app3"))
+        val storage = FakeReviewsStorage()
+        val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("app1", "app2", "app3"))
 
         // Should not throw exception due to supervisorScope
         repository.updateReviews()
@@ -72,7 +90,8 @@ class ReviewsRepositoryTest {
     @Test
     fun testUpdateReviewsHandlesAllFailures() = runTest {
         val fetcher = FakeReviewsFetcher(shouldFail = true)
-        val repository = ReviewsRepository(testLogger, fetcher, setOf("app1", "app2"))
+        val storage = FakeReviewsStorage()
+        val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("app1", "app2"))
 
         // Should not throw exception even if all fail
         repository.updateReviews()
@@ -85,8 +104,9 @@ class ReviewsRepositoryTest {
     fun testUpdateReviewsRunsConcurrently() = runTest {
         // This test verifies that all apps are fetched, which happens concurrently
         val fetcher = FakeReviewsFetcher()
+        val storage = FakeReviewsStorage()
         val apps = (1..10).map { "app$it" }.toSet()
-        val repository = ReviewsRepository(testLogger, fetcher, apps)
+        val repository = ReviewsRepository(testLogger, fetcher, storage, apps)
 
         repository.updateReviews()
 
