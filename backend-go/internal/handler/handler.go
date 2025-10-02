@@ -39,9 +39,9 @@ func (h *Handler) GetRecentReviews(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get hours parameter (default to 720 - 30 days)
+	// Get hours parameter (default to 48 - 2 days)
 	hoursStr := r.URL.Query().Get("hours")
-	hours := 720
+	hours := 48
 	if hoursStr != "" {
 		parsedHours, err := strconv.Atoi(hoursStr)
 		if err != nil || parsedHours <= 0 {

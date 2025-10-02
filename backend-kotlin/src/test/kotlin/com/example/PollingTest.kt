@@ -28,7 +28,7 @@ class PollingTest {
 
             val fetcher = FakeReviewsFetcher()
             val storage = FakeReviewsStorage()
-            val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("595068606", "447188370"))
+            val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("389801252", "447188370"))
 
             application {
                 val job = configurePolling(repository)
@@ -66,7 +66,7 @@ class PollingTest {
 
             val fetcher = FakeReviewsFetcher()
             val storage = FakeReviewsStorage()
-            val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("595068606"))
+            val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("389801252"))
 
             application {
                 val job = configurePolling(repository)
@@ -101,10 +101,10 @@ class PollingTest {
     @Test
     fun testConfigWithDuplicateAppIds() {
         // Config uses Set, so duplicates should be automatically handled
-        val config = Config(apps = setOf("595068606", "595068606", "447188370"))
+        val config = Config(apps = setOf("389801252", "389801252", "447188370"))
 
         assertEquals(2, config.apps.size)
-        assertTrue(config.apps.contains("595068606"))
+        assertTrue(config.apps.contains("389801252"))
         assertTrue(config.apps.contains("447188370"))
     }
 
@@ -115,7 +115,7 @@ class PollingTest {
 
             val fetcher = FakeReviewsFetcher()
             val storage = FakeReviewsStorage()
-            val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("595068606", "447188370", "310633997"))
+            val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("389801252", "447188370", "310633997"))
 
             application {
                 val job = configurePolling(repository)
@@ -131,7 +131,7 @@ class PollingTest {
     fun testPollingContinuesWhenOneAppFails() = runTest {
         val fetcher = FakeReviewsFetcher(shouldFail = true, failForAppIds = setOf("INVALID_APP_ID"))
         val storage = FakeReviewsStorage()
-        val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("595068606", "INVALID_APP_ID", "447188370"))
+        val repository = ReviewsRepository(testLogger, fetcher, storage, setOf("389801252", "INVALID_APP_ID", "447188370"))
 
         // updateReviews should complete even with failures
         repository.updateReviews()

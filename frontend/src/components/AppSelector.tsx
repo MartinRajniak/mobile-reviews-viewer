@@ -4,7 +4,7 @@ interface AppSelectorProps {
 }
 
 const APPS = [
-  { id: '595068606', name: 'Duolingo' },
+  { id: '389801252', name: 'Instagram' },
   { id: '447188370', name: 'Snapchat' },
   { id: '310633997', name: 'WhatsApp' },
 ];

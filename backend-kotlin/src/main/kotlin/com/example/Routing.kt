@@ -58,7 +58,7 @@ private suspend fun RoutingContext.getRecentReviews(
         val appId = params["app_id"]
 
         val hours = try {
-            params["hours"]?.toUInt()?.toInt() ?: 720
+            params["hours"]?.toUInt()?.toInt() ?: 48
         } catch (e: NumberFormatException) {
             logger.error("Parameter hours is not a positive integer", e)
             call.respond(HttpStatusCode.BadRequest, "hours must be a positive integer")

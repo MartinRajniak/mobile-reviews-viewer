@@ -7,14 +7,14 @@ class ConfigTest {
     fun testConfigDeserialization() {
         val jsonString = """
             {
-                "apps": ["595068606", "447188370", "310633997"]
+                "apps": ["389801252", "447188370", "310633997"]
             }
         """.trimIndent()
 
         val config = testJson.decodeFromString<Config>(jsonString)
 
         assertEquals(3, config.apps.size)
-        assertTrue(config.apps.contains("595068606"))
+        assertTrue(config.apps.contains("389801252"))
         assertTrue(config.apps.contains("447188370"))
         assertTrue(config.apps.contains("310633997"))
     }
@@ -36,7 +36,7 @@ class ConfigTest {
     fun testConfigIgnoresUnknownKeys() {
         val jsonString = """
             {
-                "apps": ["595068606"],
+                "apps": ["389801252"],
                 "unknownField": "value"
             }
         """.trimIndent()
@@ -44,14 +44,14 @@ class ConfigTest {
         val config = testJson.decodeFromString<Config>(jsonString)
 
         assertEquals(1, config.apps.size)
-        assertTrue(config.apps.contains("595068606"))
+        assertTrue(config.apps.contains("389801252"))
     }
 
     @Test
     fun testConfigDeduplicatesApps() {
         val jsonString = """
             {
-                "apps": ["595068606", "595068606", "447188370"]
+                "apps": ["389801252", "389801252", "447188370"]
             }
         """.trimIndent()
 
@@ -59,7 +59,7 @@ class ConfigTest {
 
         // Set should deduplicate
         assertEquals(2, config.apps.size)
-        assertTrue(config.apps.contains("595068606"))
+        assertTrue(config.apps.contains("389801252"))
         assertTrue(config.apps.contains("447188370"))
     }
 
@@ -74,16 +74,16 @@ class ConfigTest {
 
     @Test
     fun testConfigDataClass() {
-        val config = Config(apps = setOf("595068606"))
+        val config = Config(apps = setOf("389801252"))
 
         // Verify that apps is properly initialized
         assertEquals(1, config.apps.size)
-        assertTrue(config.apps.contains("595068606"))
+        assertTrue(config.apps.contains("389801252"))
 
         // Test data class copy functionality
         val config2 = config.copy(apps = setOf("447188370"))
         assertEquals(1, config2.apps.size)
         assertTrue(config2.apps.contains("447188370"))
-        assertFalse(config2.apps.contains("595068606"))
+        assertFalse(config2.apps.contains("389801252"))
     }
 }

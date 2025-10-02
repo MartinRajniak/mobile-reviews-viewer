@@ -60,11 +60,11 @@ class ITunesReviewsFetcherTest {
         val httpClient = createMockHttpClient(jsonResponse)
         val fetcher = ITunesReviewsFetcher(httpClient)
 
-        val reviews = fetcher.fetchReviews("595068606")
+        val reviews = fetcher.fetchReviews("389801252")
 
         assertEquals(2, reviews.size)
         assertEquals("review1", reviews[0].id)
-        assertEquals("595068606", reviews[0].appId)
+        assertEquals("389801252", reviews[0].appId)
         assertEquals("John Doe", reviews[0].author)
         assertEquals("Great app!", reviews[0].content)
         assertEquals(5, reviews[0].rating)
@@ -88,7 +88,7 @@ class ITunesReviewsFetcherTest {
         val httpClient = createMockHttpClient(jsonResponse)
         val fetcher = ITunesReviewsFetcher(httpClient)
 
-        val reviews = fetcher.fetchReviews("595068606")
+        val reviews = fetcher.fetchReviews("389801252")
 
         assertEquals(0, reviews.size)
     }
@@ -99,7 +99,7 @@ class ITunesReviewsFetcherTest {
         val fetcher = ITunesReviewsFetcher(httpClient)
 
         assertFailsWith<Exception> {
-            fetcher.fetchReviews("595068606")
+            fetcher.fetchReviews("389801252")
         }
     }
 
@@ -109,7 +109,7 @@ class ITunesReviewsFetcherTest {
         val fetcher = ITunesReviewsFetcher(httpClient)
 
         assertFailsWith<Exception> {
-            fetcher.fetchReviews("595068606")
+            fetcher.fetchReviews("389801252")
         }
     }
 
@@ -161,7 +161,7 @@ class ITunesReviewsFetcherTest {
         val httpClient = createMockHttpClient(jsonResponse)
         val fetcher = ITunesReviewsFetcher(httpClient)
 
-        val reviews = fetcher.fetchReviews("595068606")
+        val reviews = fetcher.fetchReviews("389801252")
 
         assertEquals(1, reviews.size)
         assertNotNull(reviews[0].fetchedAt)

@@ -4,7 +4,7 @@ import { ReviewList } from './components/ReviewList';
 import './App.css';
 
 function App() {
-  const [selectedAppId, setSelectedAppId] = useState('595068606');
+  const [selectedAppId, setSelectedAppId] = useState('389801252');
 
   return (
     <div className="app">

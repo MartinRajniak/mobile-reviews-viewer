@@ -289,7 +289,7 @@ The frontend dev server runs on `http://localhost:5173` by default.
 **Go Backend**: Edit `backend/config/apps.json` to specify which iOS apps to monitor:
 ```json
 {
-  "apps": ["595068606", "447188370", "310633997"]
+  "apps": ["389801252", "447188370", "310633997"]
 }
 ```
 
@@ -390,11 +390,11 @@ Returns recent reviews for a specific app with time filtering.
 
 **Parameters:**
 - `app_id` (required): iTunes app ID
-- `hours` (optional): Hours to look back (default: 720 - 30 days)
+- `hours` (optional): Hours to look back (default: 48 - 2 days)
 
 **Example:**
 ```bash
-curl "http://localhost:8080/api/reviews?app_id=595068606&hours=48"
+curl "http://localhost:8080/api/reviews?app_id=389801252&hours=48"
 ```
 
 **Response:**
@@ -402,7 +402,7 @@ curl "http://localhost:8080/api/reviews?app_id=595068606&hours=48"
 [
   {
     "id": "12345678",
-    "app_id": "595068606",
+    "app_id": "389801252",
     "author": "John Doe",
     "content": "Great app!",
     "rating": 5,

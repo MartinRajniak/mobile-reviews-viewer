@@ -12,7 +12,7 @@ describe('API Service', () => {
       const mockReviews: Review[] = [
         {
           id: '123',
-          app_id: '595068606',
+          app_id: '389801252',
           author: 'Test User',
           content: 'Great app!',
           rating: 5,
@@ -26,10 +26,10 @@ describe('API Service', () => {
         json: async () => mockReviews,
       });
 
-      const result = await fetchRecentReviews('595068606');
+      const result = await fetchRecentReviews('389801252');
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/reviews?app_id=595068606&hours=48'
+        'http://localhost:8080/api/reviews?app_id=389801252&hours=48'
       );
       expect(result).toEqual(mockReviews);
     });
@@ -42,10 +42,10 @@ describe('API Service', () => {
         json: async () => mockReviews,
       });
 
-      await fetchRecentReviews('595068606', 24);
+      await fetchRecentReviews('389801252', 24);
 
       expect(globalThis.fetch).toHaveBeenCalledWith(
-        'http://localhost:8080/api/reviews?app_id=595068606&hours=24'
+        'http://localhost:8080/api/reviews?app_id=389801252&hours=24'
       );
     });
 
@@ -55,7 +55,7 @@ describe('API Service', () => {
         status: 500,
       });
 
-      await expect(fetchRecentReviews('595068606')).rejects.toThrow(
+      await expect(fetchRecentReviews('389801252')).rejects.toThrow(
         'Failed to fetch reviews'
       );
     });
@@ -63,7 +63,7 @@ describe('API Service', () => {
     it('should throw error when fetch fails', async () => {
       globalThis.fetch = vi.fn().mockRejectedValue(new Error('Network error'));
 
-      await expect(fetchRecentReviews('595068606')).rejects.toThrow(
+      await expect(fetchRecentReviews('389801252')).rejects.toThrow(
         'Network error'
       );
     });
@@ -74,7 +74,7 @@ describe('API Service', () => {
         json: async () => [],
       });
 
-      const result = await fetchRecentReviews('595068606');
+      const result = await fetchRecentReviews('389801252');
 
       expect(result).toEqual([]);
     });
