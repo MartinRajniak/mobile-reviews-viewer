@@ -2,12 +2,37 @@
 
 A service for monitoring iOS App Store reviews with concurrent polling, persistent storage, and HTTP API endpoints. Available in two backend implementations: Go and Kotlin (Ktor).
 
+## Table of Contents
+- [Backend Implementations](#backend-implementations)
+- [Architecture](#architecture)
+- [Features](#features)
+  - [Backend Service](#backend-service)
+  - [Frontend Application](#frontend-application)
+  - [Project Structure](#project-structure)
+- [Key Components](#key-components)
+  - [Go Backend Components](#go-backend-components)
+  - [Kotlin Backend Components](#kotlin-backend-components)
+- [Usage](#usage)
+  - [Backend Quick Start](#backend-quick-start)
+  - [Frontend Quick Start](#frontend-quick-start)
+  - [Configuration](#configuration)
+  - [Testing & Development](#testing--development)
+- [API Integration](#api-integration)
+- [HTTP API Endpoints](#http-api-endpoints)
+  - [GET /api/reviews](#get-apireviews)
+  - [GET /api/health](#get-apihealth)
+- [Test Coverage](#test-coverage)
+  - [Go Backend](#go-backend)
+  - [Kotlin Backend](#kotlin-backend)
+  - [Frontend](#frontend)
+- [TODO & Future Improvements](#todo--future-improvements)
+
 ## Backend Implementations
 
 This project includes two backend implementations:
 
 - **`backend-go/`**: Go implementation with comprehensive test coverage (69 tests)
-- **`backend-kotlin/`**: Kotlin/Ktor implementation with 39 tests, persistent storage, and coroutine-based concurrency
+- **`backend-kotlin/`**: Kotlin/Ktor implementation with 46 tests, CORS support, persistent storage, and coroutine-based concurrency
 
 Both backends provide the same REST API for the React frontend.
 
@@ -91,6 +116,7 @@ backend-kotlin/                 # Kotlin/Ktor implementation
 │   │   ├── config.json         # Application IDs to monitor
 │   │   └── logback.xml         # Logging configuration
 │   └── test/kotlin/com/example/
+│       ├── TestFixtures.kt     # Shared test utilities (FakeReviewsStorage, FakeReviewsFetcher, testJson)
 │       ├── ApplicationTest.kt  # Application integration tests (1 test)
 │       ├── ConfigTest.kt       # Configuration tests (6 tests)
 │       ├── PollingTest.kt      # Polling service tests (9 tests)
@@ -308,7 +334,7 @@ go build -o mobile-reviews-poller main.go
 ```bash
 cd backend-kotlin
 
-# Run tests (39 tests total)
+# Run tests (46 tests total)
 ./gradlew test
 
 # Test with coverage
@@ -413,7 +439,8 @@ curl "http://localhost:8080/api/health"
 - **Coverage Areas**: Happy path, error conditions, edge cases, concurrency
 
 ### Kotlin Backend
-- **39 total tests** across all components
+- **46 total tests** across all components with shared test fixtures
+- **Test Fixtures**: Shared utilities (FakeReviewsStorage, FakeReviewsFetcher, testJson) to reduce duplication
 - **Application**: 1 test for full application integration
 - **Config**: 6 tests covering JSON deserialization, deduplication, and data class functionality
 - **Polling**: 9 tests covering concurrent polling, SupervisorJob, PollerService lifecycle, and error isolation
@@ -421,9 +448,49 @@ curl "http://localhost:8080/api/health"
 - **ReviewsRepository**: 6 tests covering concurrent fetching, supervisorScope, and error handling
 - **ITunesReviewsFetcher**: 6 tests covering HTTP client mocking, JSON parsing, and error scenarios
 - **ReviewsFileStorage**: 6 tests covering atomic writes, load/save state, deduplication, and directory creation
-- **Coverage Areas**: Configuration loading, coroutine concurrency, HTTP routing, error handling, file I/O, persistence, dispatcher usage
+- **Coverage Areas**: Configuration loading, coroutine concurrency, HTTP routing, CORS support, error handling, file I/O, persistence, dispatcher usage
 
 ### Frontend
 - **5 tests** for API service
 - **API Client**: Tests for fetch operations, error handling, and parameter validation
 - **Coverage Areas**: Default/custom parameters, HTTP errors, network failures, empty responses
+
+## TODO & Future Improvements
+
+### Backend Enhancements
+- **Retry Logic**: Implement exponential backoff for failed iTunes RSS API requests
+- **Rate Limiting**: Add rate limiting to prevent hitting iTunes API limits
+- **Metrics & Monitoring**: Add Prometheus/OpenTelemetry metrics for polling stats, API latency, error rates
+- **Structured Logging**: Migrate Go backend from `log` to `slog` for structured logging with log levels
+- **Database Storage**: Replace JSON file storage with PostgreSQL/SQLite for better query performance
+- **Incremental Polling**: Track last poll timestamp per app to avoid re-fetching same reviews
+- **Webhook Support**: Send notifications (Slack/Discord/Email) when new reviews arrive
+- **Authentication**: Add API key authentication for production deployments
+- **Docker Compose**: Multi-container setup with backend, frontend, and optional database
+- **Circuit Breaker**: Implement circuit breaker pattern for iTunes API failures
+- **Caching Layer**: Add Redis for caching frequent queries and reducing storage reads
+
+### Frontend Enhancements
+- **WebSocket Support**: Real-time updates instead of polling
+- **Review Filtering**: Filter by rating, date range, keyword search
+- **Sentiment Analysis**: Display sentiment score/trends for reviews
+- **Export Functionality**: Export reviews to CSV/JSON
+- **Dark Mode**: Theme switcher for light/dark mode
+- **Pagination**: Handle large review datasets with pagination
+- **Review Analytics**: Charts and graphs for rating trends over time
+- **Multi-Language Support**: i18n for international reviews
+
+### Testing & Quality
+- **E2E Tests**: Playwright/Cypress tests for frontend workflows
+- **Integration Tests**: Full stack integration tests
+- **Load Testing**: k6/JMeter tests for API performance under load
+- **Code Coverage**: Increase test coverage to >90% for both backends
+- **Security Scanning**: Add SAST/DAST tools (Snyk, SonarQube)
+
+### DevOps & Infrastructure
+- **CI/CD Pipeline**: GitHub Actions for automated testing and deployment
+- **Kubernetes Deployment**: Helm charts for k8s deployment
+- **Health Checks**: Liveness and readiness probes for container orchestration
+- **Log Aggregation**: Centralized logging with ELK/Loki stack
+- **Backup Strategy**: Automated backup and restore for review data
+- **Blue-Green Deployment**: Zero-downtime deployment strategy
