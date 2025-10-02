@@ -11,11 +11,12 @@ import kotlin.time.Instant
 
 class RoutingTest {
     private val testLogger = LoggerFactory.getLogger(RoutingTest::class.java)
+    private val testConfig = Config(apps = setOf("test_app", "app1", "app2"))
 
     @Test
     fun testApiReviewsEndpoint() = testApplication {
         application {
-            configureRouting(testLogger, testJson, FakeReviewsStorage())
+            configureRouting(testLogger, testJson, FakeReviewsStorage(), testConfig)
         }
 
         val response = client.get("/api/reviews?app_id=test_app")
@@ -34,7 +35,7 @@ class RoutingTest {
         )
 
         application {
-            configureRouting(testLogger, testJson, FakeReviewsStorage(mockReviews))
+            configureRouting(testLogger, testJson, FakeReviewsStorage(mockReviews), testConfig)
         }
 
         val response = client.get("/api/health")
@@ -48,7 +49,7 @@ class RoutingTest {
     @Test
     fun testApiHealthEndpointEmpty() = testApplication {
         application {
-            configureRouting(testLogger, testJson, FakeReviewsStorage())
+            configureRouting(testLogger, testJson, FakeReviewsStorage(), testConfig)
         }
 
         val response = client.get("/api/health")
@@ -62,7 +63,7 @@ class RoutingTest {
     @Test
     fun testNonExistentEndpoint() = testApplication {
         application {
-            configureRouting(testLogger, testJson, FakeReviewsStorage())
+            configureRouting(testLogger, testJson, FakeReviewsStorage(), testConfig)
         }
 
         val response = client.get("/nonexistent")
@@ -73,7 +74,7 @@ class RoutingTest {
     @Test
     fun testApiReviewsWithDifferentMethods() = testApplication {
         application {
-            configureRouting(testLogger, testJson, FakeReviewsStorage())
+            configureRouting(testLogger, testJson, FakeReviewsStorage(), testConfig)
         }
 
         // GET should work

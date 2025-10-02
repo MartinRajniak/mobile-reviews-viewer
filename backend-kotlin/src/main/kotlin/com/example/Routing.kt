@@ -25,7 +25,7 @@ data class HealthResponse(
 )
 
 // TODO: Use ReviewsRepository instead
-fun Application.configureRouting(logger: Logger, json: Json, reviewsStorage: ReviewsStorage) {
+fun Application.configureRouting(logger: Logger, json: Json, reviewsStorage: ReviewsStorage, config: Config) {
     install(CORS) {
         anyHost()
         allowMethod(HttpMethod.Get)
@@ -34,6 +34,10 @@ fun Application.configureRouting(logger: Logger, json: Json, reviewsStorage: Rev
         allowHeader(HttpHeaders.ContentType)
     }
     routing {
+        // Web app route
+        webApp(logger, config, json)
+
+        // API routes
         get("/api/reviews") {
             getRecentReviews(logger, reviewsStorage, json)
         }

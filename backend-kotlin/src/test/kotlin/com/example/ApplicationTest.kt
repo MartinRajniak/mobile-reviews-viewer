@@ -12,8 +12,9 @@ class ApplicationTest {
 
     @Test
     fun testApiReviews() = testApplication {
+        val config = Config(apps = setOf("test_app"))
         application {
-            configureRouting(testLogger, testJson, FakeReviewsStorage())
+            configureRouting(testLogger, testJson, FakeReviewsStorage(), config)
         }
         client.get("/api/reviews?app_id=test_app").apply {
             assertEquals(HttpStatusCode.OK, status)

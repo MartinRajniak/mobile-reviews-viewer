@@ -44,7 +44,8 @@ fun Application.module() {
     configureRouting(
         log,
         json,
-        reviewsStorage
+        reviewsStorage,
+        config
     )
 
     monitor.subscribe(ApplicationStopping) {
