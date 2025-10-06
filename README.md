@@ -65,11 +65,12 @@ Both backends provide the same REST API for the React frontend.
 ### Frontend Application
 - **React + TypeScript + Vite**: Modern development stack with hot module replacement
 - **App Selector**: Switch between multiple monitored iOS apps
+- **Time Window Selector**: Choose custom time ranges (12h, 24h, 48h, 72h, 7 days, 30 days)
 - **Real-Time Updates**: Auto-refresh reviews every 5 minutes
 - **Review Display**: Card-based layout with star ratings and timestamps
 - **Responsive UI**: Clean interface for viewing recent reviews
 - **Error Handling**: User-friendly error and loading states
-- **API Service Tests**: Comprehensive test coverage for API client with Vitest
+- **Comprehensive Testing**: Full test coverage for components and API client with Vitest
 
 ### Project Structure
 ```
@@ -137,13 +138,18 @@ frontend/
 │   ├── App.css                # Global application styles
 │   ├── components/
 │   │   ├── AppSelector.tsx    # App switcher dropdown component
+│   │   ├── TimeWindowSelector.tsx      # Time window dropdown component
+│   │   ├── TimeWindowSelector.test.tsx # Time window selector tests (4 tests)
 │   │   ├── ReviewList.tsx     # Review listing with auto-refresh
+│   │   ├── ReviewList.test.tsx # Review list component tests (5 tests)
 │   │   └── ReviewCard.tsx     # Individual review card component
 │   ├── services/
 │   │   ├── api.ts             # API client for backend endpoints
 │   │   └── api.test.ts        # API client test suite (5 tests)
-│   └── types/
-│       └── review.ts          # TypeScript type definitions
+│   ├── types/
+│   │   └── review.ts          # TypeScript type definitions
+│   └── test/
+│       └── setup.ts           # Vitest test setup with jest-dom
 ├── vite.config.ts             # Vite build & test configuration
 └── package.json               # Dependencies and scripts
 ```
@@ -168,7 +174,7 @@ frontend/
 
 #### HTTP API (`internal/handler/`)
 - **REST Endpoints**: JSON API for accessing stored reviews
-- **Time Filtering**: Configurable hours parameter (default: 30 days)
+- **Time Filtering**: Configurable hours parameter (default: 48 hours)
 - **Health Monitoring**: Health check endpoint with storage stats
 - **CORS Support**: Cross-origin requests enabled
 - **Error Handling**: Proper HTTP status codes and error responses
@@ -301,7 +307,10 @@ polling:
     intervalSeconds: 300  # 5 minutes (default)
 ```
 
-**Frontend**: The app selector in `src/components/AppSelector.tsx` should match the apps configured in the backend.
+**Frontend**:
+- The app selector in `src/components/AppSelector.tsx` should match the apps configured in the backend.
+- The time window selector allows users to choose from preset time ranges: 12 hours, 24 hours, 48 hours (default), 72 hours, 7 days, or 30 days.
+- Reviews are automatically refreshed every 5 minutes and when the time window selection changes.
 
 ### Testing & Development
 
@@ -451,9 +460,11 @@ curl "http://localhost:8080/api/health"
 - **Coverage Areas**: Configuration loading, coroutine concurrency, HTTP routing, CORS support, error handling, file I/O, persistence, dispatcher usage
 
 ### Frontend
-- **5 tests** for API service
-- **API Client**: Tests for fetch operations, error handling, and parameter validation
-- **Coverage Areas**: Default/custom parameters, HTTP errors, network failures, empty responses
+- **14 total tests** across all components
+- **API Client**: 5 tests for fetch operations, error handling, and parameter validation
+- **TimeWindowSelector**: 4 tests covering component rendering, user interactions, and prop handling
+- **ReviewList**: 5 tests covering time window integration, data fetching, and dynamic content
+- **Coverage Areas**: Component rendering, user interactions, API integration, time filtering, error states
 
 ## TODO & Future Improvements
 
@@ -472,7 +483,7 @@ curl "http://localhost:8080/api/health"
 
 ### Frontend Enhancements
 - **WebSocket Support**: Real-time updates instead of polling
-- **Review Filtering**: Filter by rating, date range, keyword search
+- **Advanced Filtering**: Filter by rating, keyword search, and custom date range picker
 - **Sentiment Analysis**: Display sentiment score/trends for reviews
 - **Export Functionality**: Export reviews to CSV/JSON
 - **Dark Mode**: Theme switcher for light/dark mode

@@ -5,9 +5,10 @@ import { ReviewCard } from './ReviewCard';
 
 interface ReviewListProps {
   appId: string;
+  hours?: number;
 }
 
-export const ReviewList: React.FC<ReviewListProps> = ({ appId }) => {
+export const ReviewList: React.FC<ReviewListProps> = ({ appId, hours = 48 }) => {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,9 +17,9 @@ export const ReviewList: React.FC<ReviewListProps> = ({ appId }) => {
     const loadReviews = async () => {
       setLoading(true);
       setError(null);
-      
+
       try {
-        const data = await fetchRecentReviews(appId);
+        const data = await fetchRecentReviews(appId, hours);
         setReviews(data);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'An error occurred');
@@ -28,11 +29,11 @@ export const ReviewList: React.FC<ReviewListProps> = ({ appId }) => {
     };
 
     loadReviews();
-    
+
     // Auto-refresh every 5 minutes
     const interval = setInterval(loadReviews, 5 * 60 * 1000);
     return () => clearInterval(interval);
-  }, [appId]);
+  }, [appId, hours]);
 
   if (loading) {
     return <div className="loading">Loading reviews...</div>;
@@ -44,9 +45,9 @@ export const ReviewList: React.FC<ReviewListProps> = ({ appId }) => {
 
   return (
     <div className="review-list">
-      <h2>Recent Reviews (Last 48 Hours)</h2>
+      <h2>Recent Reviews (Last {hours} Hours)</h2>
       {reviews.length === 0 ? (
-        <p className="no-reviews">No reviews found in the last 48 hours.</p>
+        <p className="no-reviews">No reviews found in the last {hours} hours.</p>
       ) : (
         <>
           <p className="review-count">{reviews.length} reviews found</p>

@@ -47,11 +47,11 @@ body {
   color: #2c3e50;
   font-size: 16px;
   transition: color 0.3s;
-  margin-right: 8px;
 }
 
 .app-selector select {
-  padding: 10px 16px;
+  padding: 10px;
+  margin: 10px;
   font-size: 16px;
   border: 2px solid #cbd5e0;
   border-radius: 6px;
@@ -67,6 +67,36 @@ body {
 }
 
 .app-selector select:focus {
+  outline: none;
+  border-color: #3182ce;
+  box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
+}
+
+.time-window-selector label {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 16px;
+  transition: color 0.3s;
+}
+
+.time-window-selector select {
+  padding: 10px;
+  margin: 10px;
+  font-size: 16px;
+  border: 2px solid #cbd5e0;
+  border-radius: 6px;
+  background-color: white;
+  color: #2c3e50;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 500;
+}
+
+.time-window-selector select:hover {
+  border-color: #4a5568;
+}
+
+.time-window-selector select:focus {
   outline: none;
   border-color: #3182ce;
   box-shadow: 0 0 0 3px rgba(49, 130, 206, 0.1);
@@ -214,6 +244,26 @@ body {
     border-color: #63b3ed;
     box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.2);
   }
+
+  .time-window-selector label {
+    color: #e2e8f0;
+  }
+
+  .time-window-selector select {
+    border-color: #4a5568;
+    background-color: #2d3748;
+    color: #f7fafc;
+  }
+
+  .time-window-selector select:hover {
+    border-color: #718096;
+  }
+
+  .time-window-selector select:focus {
+    border-color: #63b3ed;
+    box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.2);
+  }
+
 
   .review-list h2 {
     color: #f7fafc;

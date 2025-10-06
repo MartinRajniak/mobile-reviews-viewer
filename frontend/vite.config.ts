@@ -7,6 +7,7 @@ export default defineConfig({
   // @ts-expect-error - test config is added by vitest
   test: {
     globals: true,
-    environment: 'node',
+    environment: 'jsdom',
+    setupFiles: './src/test/setup.ts',
   },
 })
