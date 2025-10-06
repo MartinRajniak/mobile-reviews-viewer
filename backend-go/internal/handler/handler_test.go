@@ -399,3 +399,273 @@ func TestHandler_HealthCheck_EmptyStorage(t *testing.T) {
 		t.Errorf("Expected total_reviews 0, got %v", response["total_reviews"])
 	}
 }
+
+// GetAverageRating Tests
+
+func TestHandler_GetAverageRating_Success(t *testing.T) {
+	storage := testutil.NewMockStorage()
+	handler := NewHandler(storage)
+
+	// Add test reviews with different ratings
+	now := time.Now()
+	reviews := []models.Review{
+		{
+			ID:          "review1",
+			AppID:       "123",
+			Author:      "User1",
+			Content:     "Great app",
+			Rating:      5,
+			SubmittedAt: now.Add(-1 * time.Hour),
+			FetchedAt:   now,
+		},
+		{
+			ID:          "review2",
+			AppID:       "123",
+			Author:      "User2",
+			Content:     "Good app",
+			Rating:      4,
+			SubmittedAt: now.Add(-2 * time.Hour),
+			FetchedAt:   now,
+		},
+		{
+			ID:          "review3",
+			AppID:       "123",
+			Author:      "User3",
+			Content:     "Okay app",
+			Rating:      3,
+			SubmittedAt: now.Add(-3 * time.Hour),
+			FetchedAt:   now,
+		},
+	}
+	storage.SaveReviews(reviews)
+
+	req := httptest.NewRequest("GET", "/api/average-rating?app_id=123", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetAverageRating(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	// Check content type
+	contentType := rr.Header().Get("Content-Type")
+	if contentType != "application/json" {
+		t.Errorf("Expected content type 'application/json', got '%s'", contentType)
+	}
+
+	// Parse response
+	var response map[string]any
+	err := json.NewDecoder(rr.Body).Decode(&response)
+	if err != nil {
+		t.Fatalf("Failed to decode response: %v", err)
+	}
+
+	// Check response fields
+	if response["app_id"] != "123" {
+		t.Errorf("Expected app_id '123', got '%v'", response["app_id"])
+	}
+
+	// Average of 5, 4, 3 = 12/3 = 4.0
+	expectedAverage := 4.0
+	if response["average_rating"] != expectedAverage {
+		t.Errorf("Expected average_rating %.1f, got %v", expectedAverage, response["average_rating"])
+	}
+
+	if response["review_count"] != float64(3) {
+		t.Errorf("Expected review_count 3, got %v", response["review_count"])
+	}
+
+	if response["hours"] != float64(48) {
+		t.Errorf("Expected hours 48, got %v", response["hours"])
+	}
+}
+
+func TestHandler_GetAverageRating_CustomHours(t *testing.T) {
+	storage := testutil.NewMockStorage()
+	handler := NewHandler(storage)
+
+	// Add test reviews
+	now := time.Now()
+	reviews := []models.Review{
+		{
+			ID:          "review1",
+			AppID:       "123",
+			Author:      "User1",
+			Content:     "Recent",
+			Rating:      5,
+			SubmittedAt: now.Add(-1 * time.Hour), // Within 24h
+			FetchedAt:   now,
+		},
+		{
+			ID:          "review2",
+			AppID:       "123",
+			Author:      "User2",
+			Content:     "Old",
+			Rating:      1,
+			SubmittedAt: now.Add(-30 * time.Hour), // Outside 24h
+			FetchedAt:   now,
+		},
+	}
+	storage.SaveReviews(reviews)
+
+	req := httptest.NewRequest("GET", "/api/average-rating?app_id=123&hours=24", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetAverageRating(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	var response map[string]any
+	json.NewDecoder(rr.Body).Decode(&response)
+
+	// Should only consider review1 (rating 5)
+	if response["average_rating"] != float64(5) {
+		t.Errorf("Expected average_rating 5.0, got %v", response["average_rating"])
+	}
+
+	if response["review_count"] != float64(1) {
+		t.Errorf("Expected review_count 1, got %v", response["review_count"])
+	}
+
+	if response["hours"] != float64(24) {
+		t.Errorf("Expected hours 24, got %v", response["hours"])
+	}
+}
+
+func TestHandler_GetAverageRating_NoReviews(t *testing.T) {
+	storage := testutil.NewMockStorage()
+	handler := NewHandler(storage)
+
+	req := httptest.NewRequest("GET", "/api/average-rating?app_id=999", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetAverageRating(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Errorf("Expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+
+	var response map[string]any
+	json.NewDecoder(rr.Body).Decode(&response)
+
+	// With no reviews, average should be 0
+	if response["average_rating"] != float64(0) {
+		t.Errorf("Expected average_rating 0, got %v", response["average_rating"])
+	}
+
+	if response["review_count"] != float64(0) {
+		t.Errorf("Expected review_count 0, got %v", response["review_count"])
+	}
+}
+
+func TestHandler_GetAverageRating_MissingAppID(t *testing.T) {
+	storage := testutil.NewMockStorage()
+	handler := NewHandler(storage)
+
+	req := httptest.NewRequest("GET", "/api/average-rating", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetAverageRating(rr, req)
+
+	if rr.Code != http.StatusBadRequest {
+		t.Errorf("Expected status %d, got %d", http.StatusBadRequest, rr.Code)
+	}
+
+	responseBody := strings.TrimSpace(rr.Body.String())
+	expectedMessage := "app_id query parameter is required"
+	if !strings.Contains(responseBody, expectedMessage) {
+		t.Errorf("Expected error message '%s', got '%s'", expectedMessage, responseBody)
+	}
+}
+
+func TestHandler_GetAverageRating_InvalidMethod(t *testing.T) {
+	storage := testutil.NewMockStorage()
+	handler := NewHandler(storage)
+
+	req := httptest.NewRequest("POST", "/api/average-rating?app_id=123", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetAverageRating(rr, req)
+
+	if rr.Code != http.StatusMethodNotAllowed {
+		t.Errorf("Expected status %d, got %d", http.StatusMethodNotAllowed, rr.Code)
+	}
+}
+
+func TestHandler_GetAverageRating_InvalidHours(t *testing.T) {
+	storage := testutil.NewMockStorage()
+	handler := NewHandler(storage)
+
+	testCases := []struct {
+		name  string
+		hours string
+	}{
+		{"negative hours", "hours=-5"},
+		{"zero hours", "hours=0"},
+		{"non-numeric", "hours=abc"},
+		{"float", "hours=24.5"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			req := httptest.NewRequest("GET", "/api/average-rating?app_id=123&"+tc.hours, nil)
+			rr := httptest.NewRecorder()
+
+			handler.GetAverageRating(rr, req)
+
+			if rr.Code != http.StatusBadRequest {
+				t.Errorf("Expected status %d, got %d", http.StatusBadRequest, rr.Code)
+			}
+		})
+	}
+}
+
+func TestHandler_GetAverageRating_StorageError(t *testing.T) {
+	storage := testutil.NewMockStorage()
+	storage.SetGetRecentReviewsError(errors.New("storage error"))
+	handler := NewHandler(storage)
+
+	req := httptest.NewRequest("GET", "/api/average-rating?app_id=123", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetAverageRating(rr, req)
+
+	if rr.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status %d, got %d", http.StatusInternalServerError, rr.Code)
+	}
+}
+
+func TestHandler_GetAverageRating_RoundingPrecision(t *testing.T) {
+	storage := testutil.NewMockStorage()
+	handler := NewHandler(storage)
+
+	// Add reviews that result in a non-round average
+	now := time.Now()
+	reviews := []models.Review{
+		{ID: "r1", AppID: "123", Rating: 5, SubmittedAt: now.Add(-1 * time.Hour), FetchedAt: now},
+		{ID: "r2", AppID: "123", Rating: 4, SubmittedAt: now.Add(-2 * time.Hour), FetchedAt: now},
+		{ID: "r3", AppID: "123", Rating: 4, SubmittedAt: now.Add(-3 * time.Hour), FetchedAt: now},
+	}
+	storage.SaveReviews(reviews)
+
+	req := httptest.NewRequest("GET", "/api/average-rating?app_id=123", nil)
+	rr := httptest.NewRecorder()
+
+	handler.GetAverageRating(rr, req)
+
+	var response map[string]any
+	json.NewDecoder(rr.Body).Decode(&response)
+
+	// Average of 5, 4, 4 = 13/3 = 4.333...
+	// Should be rounded to 1 decimal place = 4.3
+	expectedAverage := 4.3
+	actualAverage := response["average_rating"].(float64)
+
+	// Allow small floating point tolerance
+	if actualAverage < expectedAverage-0.01 || actualAverage > expectedAverage+0.01 {
+		t.Errorf("Expected average_rating approximately %.1f, got %.2f", expectedAverage, actualAverage)
+	}
+}

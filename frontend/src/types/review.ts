@@ -7,3 +7,10 @@ export interface Review {
   submitted_at: string;
   fetched_at: string;
 }
+
+export interface AverageRating {
+  app_id: string;
+  average_rating: number;
+  review_count: number;
+  hours: number;
+}

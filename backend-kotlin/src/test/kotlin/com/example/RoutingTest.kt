@@ -96,4 +96,118 @@ class RoutingTest {
             assertTrue(status == HttpStatusCode.MethodNotAllowed || status == HttpStatusCode.NotFound)
         }
     }
+
+    @Test
+    fun testAverageRatingWithMultipleReviews() = testApplication {
+        val now = Instant.parse("2023-10-01T12:00:00Z")
+        val mockReviews = listOf(
+            Review("1", "app1", "Author1", "Content1", 5, now, now),
+            Review("2", "app1", "Author2", "Content2", 4, now, now),
+            Review("3", "app1", "Author3", "Content3", 3, now, now)
+        )
+
+        application {
+            configureRouting(testLogger, testJson, FakeReviewsStorage(recentReviews = mockReviews))
+        }
+
+        val response = client.get("/api/average-rating?app_id=app1")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(ContentType.Application.Json, response.contentType())
+        val body = response.bodyAsText()
+        assertTrue(body.contains("\"app_id\":\"app1\""))
+        assertTrue(body.contains("\"average_rating\":4.0"))
+        assertTrue(body.contains("\"review_count\":3"))
+        assertTrue(body.contains("\"hours\":48"))
+    }
+
+    @Test
+    fun testAverageRatingWithSingleReview() = testApplication {
+        val now = Instant.parse("2023-10-01T12:00:00Z")
+        val mockReviews = listOf(
+            Review("1", "app1", "Author1", "Content1", 5, now, now)
+        )
+
+        application {
+            configureRouting(testLogger, testJson, FakeReviewsStorage(recentReviews = mockReviews))
+        }
+
+        val response = client.get("/api/average-rating?app_id=app1")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("\"average_rating\":5.0"))
+        assertTrue(body.contains("\"review_count\":1"))
+    }
+
+    @Test
+    fun testAverageRatingWithNoReviews() = testApplication {
+        application {
+            configureRouting(testLogger, testJson, FakeReviewsStorage())
+        }
+
+        val response = client.get("/api/average-rating?app_id=app1")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("\"average_rating\":0.0"))
+        assertTrue(body.contains("\"review_count\":0"))
+    }
+
+    @Test
+    fun testAverageRatingWithCustomHours() = testApplication {
+        val now = Instant.parse("2023-10-01T12:00:00Z")
+        val mockReviews = listOf(
+            Review("1", "app1", "Author1", "Content1", 4, now, now),
+            Review("2", "app1", "Author2", "Content2", 5, now, now)
+        )
+
+        application {
+            configureRouting(testLogger, testJson, FakeReviewsStorage(recentReviews = mockReviews))
+        }
+
+        val response = client.get("/api/average-rating?app_id=app1&hours=24")
+
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("\"average_rating\":4.5"))
+        assertTrue(body.contains("\"review_count\":2"))
+        assertTrue(body.contains("\"hours\":24"))
+    }
+
+    @Test
+    fun testAverageRatingMissingAppId() = testApplication {
+        application {
+            configureRouting(testLogger, testJson, FakeReviewsStorage())
+        }
+
+        val response = client.get("/api/average-rating")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertEquals("app_id query parameter is required", response.bodyAsText())
+    }
+
+    @Test
+    fun testAverageRatingInvalidHours() = testApplication {
+        application {
+            configureRouting(testLogger, testJson, FakeReviewsStorage())
+        }
+
+        val response = client.get("/api/average-rating?app_id=app1&hours=invalid")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertEquals("hours must be a positive integer", response.bodyAsText())
+    }
+
+    @Test
+    fun testAverageRatingWithNegativeHours() = testApplication {
+        application {
+            configureRouting(testLogger, testJson, FakeReviewsStorage())
+        }
+
+        val response = client.get("/api/average-rating?app_id=app1&hours=-10")
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertEquals("hours must be a positive integer", response.bodyAsText())
+    }
 }

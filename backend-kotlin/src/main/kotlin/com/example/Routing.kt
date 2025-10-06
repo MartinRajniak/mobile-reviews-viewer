@@ -24,6 +24,17 @@ data class HealthResponse(
     val totalReviews: Int
 )
 
+@Serializable
+data class AverageRatingResponse(
+    @SerialName("app_id")
+    val appId: String,
+    @SerialName("average_rating")
+    val averageRating: Double,
+    @SerialName("review_count")
+    val reviewCount: Int,
+    val hours: Int
+)
+
 // TODO: Use ReviewsRepository instead
 fun Application.configureRouting(logger: Logger, json: Json, reviewsStorage: ReviewsStorage) {
     install(CORS) {
@@ -38,8 +49,60 @@ fun Application.configureRouting(logger: Logger, json: Json, reviewsStorage: Rev
             getRecentReviews(logger, reviewsStorage, json)
         }
         get("/api/health") {
-            healthCheck(reviewsStorage, json, logger)
+            healthCheck(logger, reviewsStorage, json)
         }
+        get("/api/average-rating") {
+            getAverageRating(logger, reviewsStorage, json)
+        }
+    }
+}
+
+private suspend fun RoutingContext.getAverageRating(
+    logger: Logger,
+    reviewsStorage: ReviewsStorage,
+    json: Json
+) {
+    try {
+        val params = call.queryParameters
+        if (!params.contains("app_id")) {
+            logger.error("Missing app_id in request")
+            call.respond(HttpStatusCode.BadRequest, "app_id query parameter is required")
+            return
+        }
+        val appId = params["app_id"]!!
+
+        val hours = try {
+            params["hours"]?.toUInt()?.toInt() ?: 48
+        } catch (e: NumberFormatException) {
+            logger.error("Parameter hours is not a positive integer", e)
+            call.respond(HttpStatusCode.BadRequest, "hours must be a positive integer")
+            return
+        }
+
+        val since = Clock.System.now() - hours.hours
+        val reviews = reviewsStorage.getRecentReviews(appId, since)
+
+        val averageRating = if (reviews.isEmpty()) {
+            0.0
+        } else {
+            reviews.map { it.rating }.average()
+        }
+
+        val response = AverageRatingResponse(
+            appId, averageRating, reviews.size, hours
+        )
+
+        call.respondText(
+            json.encodeToString<AverageRatingResponse>(response),
+            ContentType.Application.Json
+        )
+    } catch (e: CancellationException) {
+        logger.error("Application was terminated mid-request", e)
+        call.respond(HttpStatusCode.InternalServerError, "Application was terminated mid-request")
+        throw e
+    } catch (e: Exception) {
+        logger.error("Request could not be finished.", e)
+        call.respond(HttpStatusCode.InternalServerError, e.toString())
     }
 }
 
@@ -83,9 +146,9 @@ private suspend fun RoutingContext.getRecentReviews(
 }
 
 private suspend fun RoutingContext.healthCheck(
+    logger: Logger,
     reviewsStorage: ReviewsStorage,
-    json: Json,
-    logger: Logger
+    json: Json
 ) {
     try {
         val allReviews = reviewsStorage.getAllReviews()

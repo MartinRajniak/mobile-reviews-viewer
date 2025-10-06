@@ -40,7 +40,7 @@ Mobile Reviews Viewer is a service for monitoring iOS App Store reviews with two
   - `internal/testutil/`: Mock implementations and test utilities
   - `config/apps.json`: App IDs to monitor
 
-- **`backend-kotlin/`**: Kotlin/Ktor implementation (46 tests)
+- **`backend-kotlin/`**: Kotlin/Ktor implementation (54 tests)
   - `src/main/kotlin/com/example/Application.kt`: Entry point, lifecycle management
   - `src/main/kotlin/com/example/Routing.kt`: HTTP routes
   - `src/main/kotlin/com/example/Polling.kt`: Coroutine-based polling service
@@ -53,10 +53,10 @@ Mobile Reviews Viewer is a service for monitoring iOS App Store reviews with two
   - `src/main/resources/config.json`: App IDs to monitor
   - `src/test/kotlin/com/example/TestFixtures.kt`: Shared test utilities (FakeReviewsStorage, FakeReviewsFetcher)
 
-- **`frontend/`**: React + TypeScript + Vite (5 tests)
-  - `src/components/`: UI components (AppSelector, ReviewList, ReviewCard)
-  - `src/services/api.ts`: API client for backend
-  - `src/types/review.ts`: TypeScript types
+- **`frontend/`**: React + TypeScript + Vite (14 tests)
+  - `src/components/`: UI components (AppSelector, ReviewList with average rating display, ReviewCard, TimeWindowSelector)
+  - `src/services/api.ts`: API client for backend (reviews, average rating)
+  - `src/types/review.ts`: TypeScript types (Review, AverageRating)
 
 ## Common Commands
 
@@ -85,7 +85,7 @@ go vet ./...                       # Vet code
 cd backend-kotlin
 ./gradlew run                      # Run with Gradle (http://localhost:8080)
 ./run.sh                           # Run JAR directly (recommended for shutdown logs)
-./gradlew test                     # Run all tests (46 tests)
+./gradlew test                     # Run all tests (54 tests)
 ./gradlew build                    # Build project
 ./gradlew buildFatJar              # Build fat JAR
 ```
@@ -141,6 +141,10 @@ Both backends expose the same REST API:
 **GET /api/reviews**
 - Query params: `app_id` (required), `hours` (optional, default: 48)
 - Returns: Array of reviews within time window
+
+**GET /api/average-rating**
+- Query params: `app_id` (required), `hours` (optional, default: 48)
+- Returns: Average rating, review count, and time window for specified app
 
 **GET /api/health**
 - Returns: Service health status and total review count
@@ -203,7 +207,9 @@ Both backends expose the same REST API:
 
 **Auto-refresh**: ReviewList polls backend every 5 minutes using `setInterval`
 
-**API integration**: `services/api.ts` uses fetch with URL params for filtering
+**Average rating display**: Shows average rating and review count above reviews list
+
+**API integration**: `services/api.ts` uses fetch with URL params for filtering, includes `fetchAverageRating()` function
 
 ## Important Notes
 
@@ -217,5 +223,5 @@ Both backends expose the same REST API:
 ## Test Coverage Summary
 
 - **Go Backend**: 69 tests (Poller: 25, Storage: 18, Handler: 17, TestUtil: 9)
-- **Kotlin Backend**: 46 tests (Polling: 9, Repository: 6, Fetcher: 6, Storage: 6, Config: 6, Routing: 5, Application: 1)
-- **Frontend**: 5 tests (API client)
+- **Kotlin Backend**: 54 tests (Routing: 13, Polling: 9, Repository: 6, Fetcher: 6, Storage: 6, Config: 6, Application: 1)
+- **Frontend**: 14 tests (ReviewList: 5, API client: 5, TimeWindowSelector: 4)

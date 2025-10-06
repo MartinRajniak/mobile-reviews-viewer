@@ -54,6 +54,7 @@ func main() {
 	// API endpoints
 	mux.HandleFunc("/api/reviews", h.GetRecentReviews)
 	mux.HandleFunc("/api/health", h.HealthCheck)
+	mux.HandleFunc("/api/average-rating", h.GetAverageRating)
 
 	// Wrap with CORS middleware
 	corsHandler := enableCORS(mux)

@@ -20,6 +20,7 @@ A service for monitoring iOS App Store reviews with concurrent polling, persiste
 - [API Integration](#api-integration)
 - [HTTP API Endpoints](#http-api-endpoints)
   - [GET /api/reviews](#get-apireviews)
+  - [GET /api/average-rating](#get-apiaverage-rating)
   - [GET /api/health](#get-apihealth)
 - [Test Coverage](#test-coverage)
   - [Go Backend](#go-backend)
@@ -32,7 +33,7 @@ A service for monitoring iOS App Store reviews with concurrent polling, persiste
 This project includes two backend implementations:
 
 - **`backend-go/`**: Go implementation with comprehensive test coverage (69 tests)
-- **`backend-kotlin/`**: Kotlin/Ktor implementation with 46 tests, CORS support, persistent storage, and coroutine-based concurrency
+- **`backend-kotlin/`**: Kotlin/Ktor implementation with 54 tests, CORS support, persistent storage, and coroutine-based concurrency
 
 Both backends provide the same REST API for the React frontend.
 
@@ -66,7 +67,8 @@ Both backends provide the same REST API for the React frontend.
 - **React + TypeScript + Vite**: Modern development stack with hot module replacement
 - **App Selector**: Switch between multiple monitored iOS apps
 - **Time Window Selector**: Choose custom time ranges (12h, 24h, 48h, 72h, 7 days, 30 days)
-- **Real-Time Updates**: Auto-refresh reviews every 5 minutes
+- **Average Rating Display**: Shows calculated average rating with review count for selected time window
+- **Real-Time Updates**: Auto-refresh reviews and average rating every 5 minutes
 - **Review Display**: Card-based layout with star ratings and timestamps
 - **Responsive UI**: Clean interface for viewing recent reviews
 - **Error Handling**: User-friendly error and loading states
@@ -121,7 +123,7 @@ backend-kotlin/                 # Kotlin/Ktor implementation
 │       ├── ApplicationTest.kt  # Application integration tests (1 test)
 │       ├── ConfigTest.kt       # Configuration tests (6 tests)
 │       ├── PollingTest.kt      # Polling service tests (9 tests)
-│       ├── RoutingTest.kt      # HTTP routing tests (5 tests)
+│       ├── RoutingTest.kt      # HTTP routing tests (13 tests)
 │       └── reviews/
 │           ├── ReviewsRepositoryTest.kt # Repository tests (6 tests)
 │           ├── itunes/
@@ -140,14 +142,14 @@ frontend/
 │   │   ├── AppSelector.tsx    # App switcher dropdown component
 │   │   ├── TimeWindowSelector.tsx      # Time window dropdown component
 │   │   ├── TimeWindowSelector.test.tsx # Time window selector tests (4 tests)
-│   │   ├── ReviewList.tsx     # Review listing with auto-refresh
+│   │   ├── ReviewList.tsx     # Review listing with auto-refresh and average rating
 │   │   ├── ReviewList.test.tsx # Review list component tests (5 tests)
 │   │   └── ReviewCard.tsx     # Individual review card component
 │   ├── services/
-│   │   ├── api.ts             # API client for backend endpoints
+│   │   ├── api.ts             # API client for backend endpoints (reviews, average rating)
 │   │   └── api.test.ts        # API client test suite (5 tests)
 │   ├── types/
-│   │   └── review.ts          # TypeScript type definitions
+│   │   └── review.ts          # TypeScript type definitions (Review, AverageRating)
 │   └── test/
 │       └── setup.ts           # Vitest test setup with jest-dom
 ├── vite.config.ts             # Vite build & test configuration
@@ -173,8 +175,9 @@ frontend/
 - **Time-Based Queries**: GetRecentReviews with configurable time window
 
 #### HTTP API (`internal/handler/`)
-- **REST Endpoints**: JSON API for accessing stored reviews
+- **REST Endpoints**: JSON API for accessing stored reviews and analytics
 - **Time Filtering**: Configurable hours parameter (default: 48 hours)
+- **Average Rating**: Calculates average rating for reviews within time window
 - **Health Monitoring**: Health check endpoint with storage stats
 - **CORS Support**: Cross-origin requests enabled
 - **Error Handling**: Proper HTTP status codes and error responses
@@ -251,7 +254,8 @@ data class Review(
 
 #### HTTP Routes (`Routing.kt`)
 - **Ktor Routing DSL**: Clean, declarative route definitions
-- **Extensible**: Ready for reviews API endpoints
+- **API Endpoints**: Reviews listing, average rating, and health check
+- **Parameter Validation**: Proper error handling for query parameters
 
 #### Configuration Files
 - **`application.yaml`**: Server port (8080) and polling interval
@@ -421,6 +425,33 @@ curl "http://localhost:8080/api/reviews?app_id=389801252&hours=48"
 ]
 ```
 
+### GET /api/average-rating
+Returns the average rating for a specific app within a time window.
+
+**Parameters:**
+- `app_id` (required): iTunes app ID
+- `hours` (optional): Hours to look back (default: 48 - 2 days)
+
+**Example:**
+```bash
+curl "http://localhost:8080/api/average-rating?app_id=389801252&hours=48"
+```
+
+**Response:**
+```json
+{
+  "app_id": "389801252",
+  "average_rating": 4.5,
+  "review_count": 23,
+  "hours": 48
+}
+```
+
+**Notes:**
+- Returns `0.0` for `average_rating` when no reviews are found
+- Rating is calculated from all reviews within the specified time window
+- Go backend rounds to 1 decimal place; Kotlin backend provides full precision
+
 ### GET /api/health
 Returns service health status and review statistics.
 
@@ -448,12 +479,12 @@ curl "http://localhost:8080/api/health"
 - **Coverage Areas**: Happy path, error conditions, edge cases, concurrency
 
 ### Kotlin Backend
-- **46 total tests** across all components with shared test fixtures
+- **54 total tests** across all components with shared test fixtures
 - **Test Fixtures**: Shared utilities (FakeReviewsStorage, FakeReviewsFetcher, testJson) to reduce duplication
 - **Application**: 1 test for full application integration
 - **Config**: 6 tests covering JSON deserialization, deduplication, and data class functionality
 - **Polling**: 9 tests covering concurrent polling, SupervisorJob, PollerService lifecycle, and error isolation
-- **Routing**: 5 tests covering HTTP endpoints, methods, and response validation
+- **Routing**: 13 tests covering HTTP endpoints (reviews, health, average rating), methods, parameter validation, and response validation
 - **ReviewsRepository**: 6 tests covering concurrent fetching, supervisorScope, and error handling
 - **ITunesReviewsFetcher**: 6 tests covering HTTP client mocking, JSON parsing, and error scenarios
 - **ReviewsFileStorage**: 6 tests covering atomic writes, load/save state, deduplication, and directory creation
